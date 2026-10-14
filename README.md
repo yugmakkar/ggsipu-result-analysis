@@ -34,16 +34,27 @@ Design diagrams (architecture, ERD, DFD) are in
 
 ## Prerequisites
 
-- JDK **17 or newer** (the project compiles to Java 17 bytecode).
-- Maven (to build and run tests).
+- JDK **17 or newer** (the project compiles to Java 17 bytecode) — that's all
+  you need.
+- **Maven is not required**: the project ships with the Maven Wrapper (`mvnw`),
+  which downloads the correct Maven version on first run. (If you already have
+  Maven installed, you can use `mvn` instead of `./mvnw`.)
 - MySQL 8 is **optional** — by default the app runs on an embedded **H2**
   database (MySQL-compatibility mode) so nothing external is needed.
 
-## Build
+## Get the code
 
 ```bash
-mvn -DskipTests package      # produces target/result-analysis.jar (runnable)
-mvn test                     # run the test suite (19 tests)
+git clone https://github.com/yugmakkar/ggsipu-result-analysis.git
+```
+
+## Build
+
+Use the wrapper (`./mvnw` on macOS/Linux/Git Bash, `.\mvnw.cmd` on Windows
+PowerShell):
+
+```bash
+./mvnw clean package     # produces target/result-analysis.jar, runs 21 tests
 ```
 
 ## Run
@@ -171,3 +182,13 @@ src/test/java/                  JUnit tests
 - The sample PDF is synthetic; the parser needs tuning for a real gazette.
 - Grade boundaries must be confirmed against the official ordinance.
 - Tests and local runs use H2; production targets MySQL (same SQL).
+
+## Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). In short:
+clone, run `./mvnw clean package`, make a branch, and open a pull request (or
+fork the repo if you're not a collaborator).
+
+## License
+
+Released under the [MIT License](LICENSE) — free to use, modify and share.
