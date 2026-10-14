@@ -1,0 +1,31 @@
+# Build output
+target/
+
+# Local config with real credentials (never commit)
+config.properties
+
+# Embedded H2 database files
+*.db
+*.mv.db
+*.trace.db
+data/
+
+# Uploaded result PDFs (may contain confidential student data)
+uploads/
+
+# Real result PDFs must never be committed. The generated test fixture is
+# allowed through explicitly below.
+*.pdf
+!src/test/resources/sample-result.pdf
+
+# Tooling / IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# OS
+Thumbs.db
+.DS_Store

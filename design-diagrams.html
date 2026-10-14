@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GGSIPU Result Analyzer Design</title>
+<style>
+:root{
+  --bg:#f6f6f3; --card:#ffffff; --ink:#1c1d1f; --muted:#5d6168; --line:#3a3e45; --edge:#cfd3d9;
+  --c1:#e8f0fe; --c1s:#3b6fd8; --c2:#e7f4ea; --c2s:#2f8a47; --c3:#fdf1e1; --c3s:#b86a12; --c4:#f1eafd; --c4s:#7246c9;
+  --hdr:#2f4a7a;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16171a; --card:#1f2125; --ink:#ececec; --muted:#a3a7ae; --line:#c4c8cf; --edge:#3a3d44;
+    --c1:#1b2740; --c1s:#7aa2f0; --c2:#18301f; --c2s:#6fc488; --c3:#33260f; --c3s:#e0a356; --c4:#2a2140; --c4s:#a98bf0;
+    --hdr:#3c5a8f;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16171a; --card:#1f2125; --ink:#ececec; --muted:#a3a7ae; --line:#c4c8cf; --edge:#3a3d44;
+  --c1:#1b2740; --c1s:#7aa2f0; --c2:#18301f; --c2s:#6fc488; --c3:#33260f; --c3s:#e0a356; --c4:#2a2140; --c4s:#a98bf0;
+  --hdr:#3c5a8f;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1120px;margin:0 auto;padding:32px 16px 64px}
+h1{font-size:28px;margin:0 0 4px}
+h2{font-size:21px;margin:48px 0 8px;padding-top:8px;border-top:1px solid var(--edge)}
+h3{font-size:16px;margin:24px 0 6px}
+p{margin:6px 0 12px;max-width:80ch}
+.muted{color:var(--muted)}
+.fig{background:var(--card);border:1px solid var(--edge);border-radius:12px;padding:12px;margin:12px 0;overflow-x:auto}
+.fig svg{display:block;width:100%;min-width:760px;height:auto}
+table{border-collapse:collapse;width:100%;margin:10px 0;background:var(--card);font-size:14px}
+th,td{border:1px solid var(--edge);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--c1)}
+code,pre{font-family:ui-monospace,Consolas,monospace;font-size:13px}
+pre{background:var(--card);border:1px solid var(--edge);border-radius:10px;padding:12px 14px;overflow-x:auto;line-height:1.5}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:760px){.grid2{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--edge);border-radius:12px;padding:12px 16px}
+.card h3{margin-top:4px}
+.card ul{margin:4px 0;padding-left:20px}
+
+/* SVG styles */
+svg text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.t{fill:var(--ink);font-size:14px;font-weight:600}
+.s{fill:var(--muted);font-size:12px}
+.xs{fill:var(--muted);font-size:11.5px}
+.tl{fill:var(--ink);font-size:12.5px;font-weight:700;letter-spacing:.06em}
+.lbl{fill:var(--ink);font-size:12px}
+.ln{stroke:var(--line);stroke-width:1.6;fill:none}
+.ah{fill:var(--line)}
+.box{fill:var(--card);stroke:var(--edge);stroke-width:1.2}
+.tc{fill:var(--c1);stroke:var(--c1s);stroke-width:1.2}
+.ta{fill:var(--c2);stroke:var(--c2s);stroke-width:1.2}
+.td{fill:var(--c3);stroke:var(--c3s);stroke-width:1.2}
+.band{fill:var(--card);stroke:var(--c2s);stroke-width:1;stroke-dasharray:4 3}
+.ent{fill:var(--card);stroke:var(--hdr);stroke-width:1.4}
+.enth{fill:var(--hdr)}
+.enttx{fill:#fff;font-size:13.5px;font-weight:700;letter-spacing:.04em}
+.pk{font-weight:700;text-decoration:underline}
+.key{fill:var(--c4s);font-size:11px;font-weight:700}
+.card-s{fill:var(--card);stroke:var(--edge)}
+.proc{fill:var(--c2);stroke:var(--c2s);stroke-width:1.4}
+.ext{fill:var(--c1);stroke:var(--c1s);stroke-width:1.4}
+.store{fill:var(--c3)}
+.storeln{stroke:var(--c3s);stroke-width:1.4;fill:none}
+.note{fill:var(--c4);stroke:var(--c4s);stroke-width:1}
+</style>
+</head>
+<body>
+<main>
+<h1>GGSIPU Result Analysis &amp; CGPA Calculator</h1>
+<p class="muted">Problem Statement 22 · System architecture, ER diagram and data flow diagrams · Stack: Java + MySQL on Linux, with Apache PDFBox as the only non-core library.</p>
+
+<h2>0. Two-semester plan</h2>
+<div class="grid2">
+  <div class="card">
+    <h3>Semester 1: Core engine (Java + SQL)</h3>
+    <ul>
+      <li>MySQL schema (all tables in the ERD below), created with SQL scripts</li>
+      <li>Reading a GGSIPU result PDF with <b>Apache PDFBox</b>, then extracting enrollment no., name, paper IDs and marks with Java <b>regex</b></li>
+      <li>Saving the data through <b>JDBC</b> (DAO classes, PreparedStatement, transactions)</li>
+      <li>Converting marks to a grade and grade point, then calculating <b>SGPA</b> (Sem I, Sem II) and <b>CGPA</b></li>
+      <li>A menu-driven <b>console / Swing</b> UI: import PDF, search a student, show the marksheet</li>
+      <li>Runs on <b>Linux</b>. A shell script batch-imports a folder of PDFs</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Semester 2: Web app + analytics</h3>
+    <ul>
+      <li>Web front-end with <b>Servlets + JSP</b> on <b>Apache Tomcat</b> (HTTP client–server, see CN)</li>
+      <li>Admin page to upload PDFs (multipart POST). Student page to check results</li>
+      <li><b>Topper analysis</b>: subject-wise, college-wise, semester-wise and overall university topper</li>
+      <li>Ranking with SQL window functions and with Java <code>Comparator</code> sorting</li>
+      <li>Parallel parsing of many PDFs with a thread pool (<code>ExecutorService</code>, see OS)</li>
+      <li>Deployment on an Ubuntu server, with a cron job that backs up the database</li>
+    </ul>
+  </div>
+</div>
+
+<h2>1. System architecture (3-tier)</h2>
+<p>The browser (or the Sem 1 desktop UI) sends requests. Java code on Tomcat does all of the parsing and calculation. MySQL stores the structured data, and the Linux file system stores the original PDFs.</p>
+<div class="fig">
+<svg viewBox="0 0 1000 705" role="img" aria-label="Three-tier system architecture">
+  <defs>
+    <marker id="arrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+  </defs>
+
+  <!-- Client tier -->
+  <rect class="tc" x="20" y="20" width="960" height="110" rx="14"/>
+  <text class="tl" x="38" y="42">CLIENT TIER · PRESENTATION</text>
+  <rect class="box" x="60" y="55" width="260" height="60" rx="8"/>
+  <text class="t" x="190" y="80" text-anchor="middle">Admin · Web Browser</text>
+  <text class="s" x="190" y="100" text-anchor="middle">uploads GGSIPU result PDF</text>
+  <rect class="box" x="370" y="55" width="260" height="60" rx="8"/>
+  <text class="t" x="500" y="80" text-anchor="middle">Student · Web Browser</text>
+  <text class="s" x="500" y="100" text-anchor="middle">views SGPA, CGPA, toppers</text>
+  <rect class="box" x="680" y="55" width="260" height="60" rx="8"/>
+  <text class="t" x="810" y="80" text-anchor="middle">Java Console / Swing App</text>
+  <text class="s" x="810" y="100" text-anchor="middle">Sem 1 desktop front-end</text>
+
+  <!-- network arrows -->
+  <line class="ln" x1="190" y1="115" x2="190" y2="175" marker-start="url(#arrA)" marker-end="url(#arrA)"/>
+  <line class="ln" x1="500" y1="115" x2="500" y2="175" marker-start="url(#arrA)" marker-end="url(#arrA)"/>
+  <line class="ln" x1="810" y1="115" x2="810" y2="175" marker-start="url(#arrA)" marker-end="url(#arrA)"/>
+  <text class="lbl" x="205" y="152">HTTP request / response · TCP :8080</text>
+  <text class="lbl" x="515" y="152">HTTP (GET / POST)</text>
+  <text class="lbl" x="825" y="152">direct method calls</text>
+
+  <!-- Application tier -->
+  <rect class="ta" x="20" y="175" width="960" height="355" rx="14"/>
+  <text class="tl" x="38" y="197">APPLICATION TIER · JAVA 17 ON APACHE TOMCAT · LINUX (UBUNTU)</text>
+
+  <!-- controller band -->
+  <rect class="band" x="36" y="210" width="928" height="78" rx="10"/>
+  <text class="xs" x="50" y="228">Controller layer: Servlets / JSP (web) and ConsoleMenu (Sem 1)</text>
+  <rect class="box" x="50" y="236" width="210" height="44" rx="7"/>
+  <text class="t" x="155" y="255" text-anchor="middle">UploadServlet</text>
+  <text class="xs" x="155" y="272" text-anchor="middle">POST multipart PDF</text>
+  <rect class="box" x="280" y="236" width="210" height="44" rx="7"/>
+  <text class="t" x="385" y="255" text-anchor="middle">ResultServlet</text>
+  <text class="xs" x="385" y="272" text-anchor="middle">GET /result?enroll=…</text>
+  <rect class="box" x="510" y="236" width="210" height="44" rx="7"/>
+  <text class="t" x="615" y="255" text-anchor="middle">TopperServlet</text>
+  <text class="xs" x="615" y="272" text-anchor="middle">GET /toppers?type=…</text>
+  <rect class="box" x="740" y="236" width="210" height="44" rx="7"/>
+  <text class="t" x="845" y="255" text-anchor="middle">ConsoleMenu.java</text>
+  <text class="xs" x="845" y="272" text-anchor="middle">Sem 1 menu-driven UI</text>
+
+  <line class="ln" x1="500" y1="288" x2="500" y2="312" marker-end="url(#arrA)"/>
+
+  <!-- service band -->
+  <rect class="band" x="36" y="312" width="928" height="100" rx="10"/>
+  <text class="xs" x="50" y="330">Service layer: business logic in core Java</text>
+  <rect class="box" x="50" y="340" width="164" height="60" rx="7"/>
+  <text class="t" x="132" y="365" text-anchor="middle">PdfReader</text>
+  <text class="xs" x="132" y="384" text-anchor="middle">Apache PDFBox → text</text>
+  <rect class="box" x="234" y="340" width="164" height="60" rx="7"/>
+  <text class="t" x="316" y="365" text-anchor="middle">ResultExtractor</text>
+  <text class="xs" x="316" y="384" text-anchor="middle">regex → objects</text>
+  <rect class="box" x="418" y="340" width="164" height="60" rx="7"/>
+  <text class="t" x="500" y="365" text-anchor="middle">GradeCalculator</text>
+  <text class="xs" x="500" y="384" text-anchor="middle">marks → grade point</text>
+  <rect class="box" x="602" y="340" width="164" height="60" rx="7"/>
+  <text class="t" x="684" y="365" text-anchor="middle">GpaCalculator</text>
+  <text class="xs" x="684" y="384" text-anchor="middle">SGPA &amp; CGPA</text>
+  <rect class="box" x="786" y="340" width="164" height="60" rx="7"/>
+  <text class="t" x="868" y="365" text-anchor="middle">TopperService</text>
+  <text class="xs" x="868" y="384" text-anchor="middle">sort · rank · group</text>
+  <line class="ln" x1="214" y1="370" x2="234" y2="370" marker-end="url(#arrA)"/>
+  <line class="ln" x1="398" y1="370" x2="418" y2="370" marker-end="url(#arrA)"/>
+  <line class="ln" x1="582" y1="370" x2="602" y2="370" marker-end="url(#arrA)"/>
+
+  <line class="ln" x1="500" y1="412" x2="500" y2="436" marker-end="url(#arrA)"/>
+
+  <!-- DAO band -->
+  <rect class="band" x="36" y="436" width="928" height="78" rx="10"/>
+  <text class="xs" x="50" y="454">Data access layer: DAO classes + JDBC (PreparedStatement, transactions)</text>
+  <rect class="box" x="50" y="462" width="210" height="44" rx="7"/>
+  <text class="t" x="155" y="481" text-anchor="middle">StudentDAO</text>
+  <text class="xs" x="155" y="498" text-anchor="middle">student, college</text>
+  <rect class="box" x="280" y="462" width="210" height="44" rx="7"/>
+  <text class="t" x="385" y="481" text-anchor="middle">SubjectDAO</text>
+  <text class="xs" x="385" y="498" text-anchor="middle">subject, credits</text>
+  <rect class="box" x="510" y="462" width="210" height="44" rx="7"/>
+  <text class="t" x="615" y="481" text-anchor="middle">MarksDAO</text>
+  <text class="xs" x="615" y="498" text-anchor="middle">marks, grades</text>
+  <rect class="box" x="740" y="462" width="210" height="44" rx="7"/>
+  <text class="t" x="845" y="481" text-anchor="middle">ResultDAO</text>
+  <text class="xs" x="845" y="498" text-anchor="middle">SGPA, CGPA, ranks</text>
+
+  <!-- to data tier -->
+  <line class="ln" x1="270" y1="530" x2="270" y2="607" marker-start="url(#arrA)" marker-end="url(#arrA)"/>
+  <text class="lbl" x="282" y="565">JDBC · SQL · TCP :3306</text>
+  <line class="ln" x1="730" y1="530" x2="730" y2="607" marker-start="url(#arrA)" marker-end="url(#arrA)"/>
+  <text class="lbl" x="742" y="565">java.nio file I/O</text>
+
+  <!-- Data tier -->
+  <rect class="td" x="20" y="575" width="960" height="122" rx="14"/>
+  <text class="tl" x="38" y="597">DATA TIER</text>
+  <rect class="box" x="60" y="607" width="420" height="78" rx="8"/>
+  <text class="t" x="270" y="630" text-anchor="middle">MySQL 8 Database</text>
+  <text class="s" x="270" y="650" text-anchor="middle">college · programme · student · subject · marks</text>
+  <text class="s" x="270" y="668" text-anchor="middle">semester_result · grade_scale · result_upload</text>
+  <rect class="box" x="520" y="607" width="420" height="78" rx="8"/>
+  <text class="t" x="730" y="630" text-anchor="middle">Linux File System</text>
+  <text class="s" x="730" y="650" text-anchor="middle">/opt/ipuresult/uploads/*.pdf (original PDFs)</text>
+  <text class="s" x="730" y="668" text-anchor="middle">logs · DB backups (mysqldump via cron)</text>
+</svg>
+</div>
+
+<h3>Where each core subject shows up</h3>
+<table>
+  <tr><th style="width:22%">Subject</th><th>Used in</th></tr>
+  <tr><td><b>Java</b></td><td>All of the logic: OOP model classes (<code>Student</code>, <code>Subject</code>, <code>Mark</code>, <code>SemesterResult</code>), collections, regex, exception handling, JDBC, Servlets/JSP, multithreading.</td></tr>
+  <tr><td><b>DBMS (SQL)</b></td><td>Normalised schema (3NF), PK/FK constraints, joins, <code>GROUP BY</code> aggregates for SGPA, a view for CGPA, window functions (<code>RANK()</code>) for toppers, transactions for each PDF import.</td></tr>
+  <tr><td><b>Computer Networks</b></td><td>Client–server model, HTTP GET/POST, multipart file upload, TCP ports (8080 for Tomcat, 3306 for MySQL), request/response cycle, sessions for admin login.</td></tr>
+  <tr><td><b>Operating Systems + Linux</b></td><td>Deployment on Ubuntu, file system storage and permissions (<code>chmod</code> on the upload folder), Tomcat's thread-per-request model, <code>ExecutorService</code> to parse PDFs in parallel, shell script and cron for batch import and backups.</td></tr>
+  <tr><td><b>Discrete Structures</b></td><td>Marks → grade is a <i>function</i> (piecewise mapping). Tables are <i>relations</i> and joins are relational composition. Ranking uses a <i>total order</i> (sorting). Topper groups are <i>partitions / equivalence classes</i> (by college, by subject, by semester). Validation rules use predicate logic.</td></tr>
+  <tr><td><b>New tech (only one)</b></td><td>Apache PDFBox (Java library) to read text out of the result PDF.</td></tr>
+</table>
+
+<h2>2. Entity–Relationship Diagram</h2>
+<p>These 8 academic tables are shown below. <code>MARKS</code> resolves the many-to-many relationship between <code>STUDENT</code> and <code>SUBJECT</code>. CGPA is computed with a view rather than stored, which avoids redundancy. A 9th table, <code>ADMIN</code> (admin_id, username, password_hash, failed_logins, locked_until), holds the web login accounts and is independent of the academic data.</p>
+<div class="fig">
+<svg viewBox="0 0 1000 612" role="img" aria-label="Entity relationship diagram">
+  <defs>
+    <marker id="arrE" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+  </defs>
+
+  <!-- relationships (drawn first, under entities) -->
+  <path class="ln" d="M250,71 H390"/>
+  <text class="lbl" x="258" y="65">1</text><text class="lbl" x="380" y="65">N</text>
+  <text class="xs" x="320" y="64" text-anchor="middle">has</text>
+
+  <path class="ln" d="M250,222 H320 V150 H390"/>
+  <text class="lbl" x="258" y="216">1</text><text class="lbl" x="380" y="144">N</text>
+  <text class="xs" x="326" y="190">enrols</text>
+
+  <path class="ln" d="M140,274 V330"/>
+  <text class="lbl" x="146" y="288">1</text><text class="lbl" x="146" y="326">N</text>
+  <text class="xs" x="156" y="307">offers</text>
+
+  <path class="ln" d="M500,178 V280"/>
+  <text class="lbl" x="506" y="193">1</text><text class="lbl" x="506" y="275">N</text>
+  <text class="xs" x="512" y="233">scores</text>
+
+  <path class="ln" d="M250,415 H390"/>
+  <text class="lbl" x="258" y="409">1</text><text class="lbl" x="380" y="409">N</text>
+  <text class="xs" x="320" y="408" text-anchor="middle">appears in</text>
+
+  <path class="ln" d="M610,100 H750"/>
+  <text class="lbl" x="618" y="94">1</text><text class="lbl" x="740" y="94">N</text>
+  <text class="xs" x="680" y="93" text-anchor="middle">obtains</text>
+
+  <path class="ln" d="M750,293 H680 V330 H610"/>
+  <text class="lbl" x="742" y="287" text-anchor="end">1</text><text class="lbl" x="618" y="324">N</text>
+  <text class="xs" x="686" y="314">defines</text>
+
+  <path class="ln" d="M750,470 H680 V440 H610"/>
+  <text class="lbl" x="742" y="464" text-anchor="end">1</text><text class="lbl" x="618" y="434">N</text>
+  <text class="xs" x="686" y="458">contains</text>
+
+  <!-- COLLEGE -->
+  <rect class="ent" x="30" y="30" width="220" height="82" rx="6"/>
+  <path class="enth" d="M36,30 H244 A6,6 0 0 1 250,36 V54 H30 V36 A6,6 0 0 1 36,30 Z"/>
+  <text class="enttx" x="140" y="47" text-anchor="middle">COLLEGE</text>
+  <text class="lbl pk" x="42" y="76">college_code</text><text class="key" x="238" y="76" text-anchor="end">PK</text>
+  <text class="lbl" x="42" y="98">college_name</text>
+
+  <!-- PROGRAMME -->
+  <rect class="ent" x="30" y="170" width="220" height="104" rx="6"/>
+  <path class="enth" d="M36,170 H244 A6,6 0 0 1 250,176 V194 H30 V176 A6,6 0 0 1 36,170 Z"/>
+  <text class="enttx" x="140" y="187" text-anchor="middle">PROGRAMME</text>
+  <text class="lbl pk" x="42" y="216">programme_code</text><text class="key" x="238" y="216" text-anchor="end">PK</text>
+  <text class="lbl" x="42" y="238">programme_name</text>
+  <text class="lbl" x="42" y="260">duration_years</text>
+
+  <!-- SUBJECT -->
+  <rect class="ent" x="30" y="330" width="220" height="170" rx="6"/>
+  <path class="enth" d="M36,330 H244 A6,6 0 0 1 250,336 V354 H30 V336 A6,6 0 0 1 36,330 Z"/>
+  <text class="enttx" x="140" y="347" text-anchor="middle">SUBJECT</text>
+  <text class="lbl pk" x="42" y="376">paper_id</text><text class="key" x="238" y="376" text-anchor="end">PK</text>
+  <text class="lbl" x="42" y="398">paper_code</text>
+  <text class="lbl" x="42" y="420">subject_name</text>
+  <text class="lbl" x="42" y="442">credits</text>
+  <text class="lbl" x="42" y="464">semester</text>
+  <text class="lbl" x="42" y="486">programme_code</text><text class="key" x="238" y="486" text-anchor="end">FK</text>
+
+  <!-- STUDENT -->
+  <rect class="ent" x="390" y="30" width="220" height="148" rx="6"/>
+  <path class="enth" d="M396,30 H604 A6,6 0 0 1 610,36 V54 H390 V36 A6,6 0 0 1 396,30 Z"/>
+  <text class="enttx" x="500" y="47" text-anchor="middle">STUDENT</text>
+  <text class="lbl pk" x="402" y="76">enrollment_no</text><text class="key" x="598" y="76" text-anchor="end">PK</text>
+  <text class="lbl" x="402" y="98">name</text>
+  <text class="lbl" x="402" y="120">college_code</text><text class="key" x="598" y="120" text-anchor="end">FK</text>
+  <text class="lbl" x="402" y="142">programme_code</text><text class="key" x="598" y="142" text-anchor="end">FK</text>
+  <text class="lbl" x="402" y="164">batch_year</text>
+
+  <!-- MARKS -->
+  <rect class="ent" x="390" y="280" width="220" height="192" rx="6"/>
+  <path class="enth" d="M396,280 H604 A6,6 0 0 1 610,286 V304 H390 V286 A6,6 0 0 1 396,280 Z"/>
+  <text class="enttx" x="500" y="297" text-anchor="middle">MARKS</text>
+  <text class="lbl pk" x="402" y="326">enrollment_no</text><text class="key" x="598" y="326" text-anchor="end">PK, FK</text>
+  <text class="lbl pk" x="402" y="348">paper_id</text><text class="key" x="598" y="348" text-anchor="end">PK, FK</text>
+  <text class="lbl" x="402" y="370">upload_id</text><text class="key" x="598" y="370" text-anchor="end">FK</text>
+  <text class="lbl" x="402" y="392">internal_marks</text>
+  <text class="lbl" x="402" y="414">external_marks</text>
+  <text class="lbl" x="402" y="436">total_marks</text>
+  <text class="lbl" x="402" y="458">grade</text><text class="key" x="598" y="458" text-anchor="end">FK</text>
+
+  <!-- SEMESTER_RESULT -->
+  <rect class="ent" x="750" y="30" width="220" height="148" rx="6"/>
+  <path class="enth" d="M756,30 H964 A6,6 0 0 1 970,36 V54 H750 V36 A6,6 0 0 1 756,30 Z"/>
+  <text class="enttx" x="860" y="47" text-anchor="middle">SEMESTER_RESULT</text>
+  <text class="lbl pk" x="762" y="76">enrollment_no</text><text class="key" x="958" y="76" text-anchor="end">PK, FK</text>
+  <text class="lbl pk" x="762" y="98">semester</text><text class="key" x="958" y="98" text-anchor="end">PK</text>
+  <text class="lbl" x="762" y="120">total_credits</text>
+  <text class="lbl" x="762" y="142">credit_points</text>
+  <text class="lbl" x="762" y="164">sgpa</text>
+
+  <!-- GRADE_SCALE -->
+  <rect class="ent" x="750" y="230" width="220" height="126" rx="6"/>
+  <path class="enth" d="M756,230 H964 A6,6 0 0 1 970,236 V254 H750 V236 A6,6 0 0 1 756,230 Z"/>
+  <text class="enttx" x="860" y="247" text-anchor="middle">GRADE_SCALE</text>
+  <text class="lbl pk" x="762" y="276">grade</text><text class="key" x="958" y="276" text-anchor="end">PK</text>
+  <text class="lbl" x="762" y="298">min_marks</text>
+  <text class="lbl" x="762" y="320">max_marks</text>
+  <text class="lbl" x="762" y="342">grade_point</text>
+
+  <!-- RESULT_UPLOAD -->
+  <rect class="ent" x="750" y="400" width="220" height="148" rx="6"/>
+  <path class="enth" d="M756,400 H964 A6,6 0 0 1 970,406 V424 H750 V406 A6,6 0 0 1 756,400 Z"/>
+  <text class="enttx" x="860" y="417" text-anchor="middle">RESULT_UPLOAD</text>
+  <text class="lbl pk" x="762" y="446">upload_id</text><text class="key" x="958" y="446" text-anchor="end">PK</text>
+  <text class="lbl" x="762" y="468">file_name</text>
+  <text class="lbl" x="762" y="490">semester</text>
+  <text class="lbl" x="762" y="512">exam_session</text>
+  <text class="lbl" x="762" y="534">uploaded_on</text>
+
+  <!-- note -->
+  <rect class="note" x="30" y="566" width="940" height="36" rx="8"/>
+  <text class="lbl" x="500" y="589" text-anchor="middle">VIEW v_cgpa (derived, not stored): CGPA = SUM(credit_points) / SUM(total_credits) per student · PK = primary key · FK = foreign key</text>
+</svg>
+</div>
+
+<div class="grid2">
+  <div>
+    <h3>GGSIPU grading (GRADE_SCALE rows)</h3>
+    <table>
+      <tr><th>Marks</th><th>Grade</th><th>Point</th></tr>
+      <tr><td>90 – 100</td><td>O</td><td>10</td></tr>
+      <tr><td>75 – 89</td><td>A+</td><td>9</td></tr>
+      <tr><td>65 – 74</td><td>A</td><td>8</td></tr>
+      <tr><td>55 – 64</td><td>B+</td><td>7</td></tr>
+      <tr><td>50 – 54</td><td>B</td><td>6</td></tr>
+      <tr><td>45 – 49</td><td>C</td><td>5</td></tr>
+      <tr><td>40 – 44</td><td>P</td><td>4</td></tr>
+      <tr><td>&lt; 40</td><td>F</td><td>0</td></tr>
+    </table>
+    <p class="muted">Check these ranges against your own scheme's ordinance. Because the scale is a table and not hard-coded, a change only means updating rows.</p>
+  </div>
+  <div>
+    <h3>Formulas</h3>
+    <pre>credit_points(sem) = Σ (creditᵢ × grade_pointᵢ)
+SGPA(sem)          = credit_points / Σ creditᵢ
+
+CGPA = Σ credit_points(Sem I, Sem II)
+       ─────────────────────────────
+       Σ total_credits(Sem I, Sem II)</pre>
+    <h3>Relationships</h3>
+    <ul>
+      <li>College 1 : N Student</li>
+      <li>Programme 1 : N Student, Programme 1 : N Subject</li>
+      <li>Student M : N Subject (through <code>MARKS</code>)</li>
+      <li>Student 1 : N Semester_Result</li>
+      <li>Grade_Scale 1 : N Marks, Result_Upload 1 : N Marks</li>
+    </ul>
+  </div>
+</div>
+
+<h2>3. Data Flow Diagrams</h2>
+<h3>Level 0 (context diagram)</h3>
+<div class="fig">
+<svg viewBox="0 0 1000 240" role="img" aria-label="DFD level 0">
+  <defs>
+    <marker id="arrD0" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+  </defs>
+  <rect class="ext" x="40" y="85" width="170" height="80"/>
+  <text class="t" x="125" y="120" text-anchor="middle">Admin</text>
+  <text class="s" x="125" y="140" text-anchor="middle">(exam cell / faculty)</text>
+
+  <circle class="proc" cx="500" cy="125" r="100"/>
+  <text class="t" x="500" y="105" text-anchor="middle">0.0</text>
+  <text class="t" x="500" y="128" text-anchor="middle">Result Analysis</text>
+  <text class="t" x="500" y="148" text-anchor="middle">&amp; CGPA System</text>
+
+  <rect class="ext" x="790" y="85" width="170" height="80"/>
+  <text class="t" x="875" y="120" text-anchor="middle">Student</text>
+  <text class="s" x="875" y="140" text-anchor="middle">(or any viewer)</text>
+
+  <line class="ln" x1="210" y1="108" x2="402" y2="108" marker-end="url(#arrD0)"/>
+  <text class="xs" x="306" y="100" text-anchor="middle">result PDF + semester info</text>
+  <line class="ln" x1="402" y1="142" x2="210" y2="142" marker-end="url(#arrD0)"/>
+  <text class="xs" x="306" y="160" text-anchor="middle">upload / parse report</text>
+
+  <line class="ln" x1="790" y1="108" x2="598" y2="108" marker-end="url(#arrD0)"/>
+  <text class="xs" x="694" y="100" text-anchor="middle">enrollment no., topper query</text>
+  <line class="ln" x1="598" y1="142" x2="790" y2="142" marker-end="url(#arrD0)"/>
+  <text class="xs" x="694" y="160" text-anchor="middle">marksheet, SGPA, CGPA, toppers</text>
+</svg>
+</div>
+
+<h3>Level 1 (main processes)</h3>
+<div class="fig">
+<svg viewBox="0 0 1100 520" role="img" aria-label="DFD level 1">
+  <defs>
+    <marker id="arrD1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+  </defs>
+
+  <!-- external entities -->
+  <rect class="ext" x="20" y="90" width="110" height="60"/>
+  <text class="t" x="75" y="125" text-anchor="middle">Admin</text>
+  <rect class="ext" x="20" y="340" width="110" height="60"/>
+  <text class="t" x="75" y="375" text-anchor="middle">Student</text>
+
+  <!-- data stores -->
+  <rect class="store" x="705" y="10" width="170" height="36"/>
+  <path class="storeln" d="M875,10 H705 V46 H875 M745,10 V46"/>
+  <text class="t" x="725" y="33" text-anchor="middle">D4</text><text class="lbl" x="755" y="33">Grade Scale</text>
+
+  <rect class="store" x="330" y="230" width="230" height="36"/>
+  <path class="storeln" d="M560,230 H330 V266 H560 M370,230 V266"/>
+  <text class="t" x="350" y="253" text-anchor="middle">D1</text><text class="lbl" x="380" y="253">PDF Files (Linux FS)</text>
+
+  <rect class="store" x="600" y="230" width="230" height="36"/>
+  <path class="storeln" d="M830,230 H600 V266 H830 M640,230 V266"/>
+  <text class="t" x="620" y="253" text-anchor="middle">D2</text><text class="lbl" x="650" y="253">Students, Colleges, Subjects</text>
+
+  <rect class="store" x="910" y="230" width="170" height="36"/>
+  <path class="storeln" d="M1080,230 H910 V266 H1080 M950,230 V266"/>
+  <text class="t" x="930" y="253" text-anchor="middle">D3</text><text class="lbl" x="960" y="253">Marks</text>
+
+  <rect class="store" x="280" y="470" width="600" height="36"/>
+  <path class="storeln" d="M880,470 H280 V506 H880 M320,470 V506"/>
+  <text class="t" x="300" y="493" text-anchor="middle">D5</text><text class="lbl" x="330" y="493">Semester Results (SGPA per semester, CGPA view)</text>
+
+  <!-- processes -->
+  <rect class="proc" x="205" y="80" width="170" height="80" rx="12"/>
+  <line class="storeln" x1="205" y1="104" x2="375" y2="104" style="stroke:var(--c2s)"/>
+  <text class="t" x="290" y="97" text-anchor="middle">1.0</text>
+  <text class="t" x="290" y="128" text-anchor="middle">Upload PDF</text>
+  <text class="xs" x="290" y="146" text-anchor="middle">store on server</text>
+
+  <rect class="proc" x="455" y="80" width="170" height="80" rx="12"/>
+  <line class="storeln" x1="455" y1="104" x2="625" y2="104" style="stroke:var(--c2s)"/>
+  <text class="t" x="540" y="97" text-anchor="middle">2.0</text>
+  <text class="t" x="540" y="128" text-anchor="middle">Parse &amp; Extract</text>
+  <text class="xs" x="540" y="146" text-anchor="middle">PDFBox + regex</text>
+
+  <rect class="proc" x="705" y="80" width="170" height="80" rx="12"/>
+  <line class="storeln" x1="705" y1="104" x2="875" y2="104" style="stroke:var(--c2s)"/>
+  <text class="t" x="790" y="97" text-anchor="middle">3.0</text>
+  <text class="t" x="790" y="128" text-anchor="middle">Assign Grades</text>
+  <text class="xs" x="790" y="146" text-anchor="middle">marks → grade point</text>
+
+  <rect class="proc" x="705" y="330" width="170" height="80" rx="12"/>
+  <line class="storeln" x1="705" y1="354" x2="875" y2="354" style="stroke:var(--c2s)"/>
+  <text class="t" x="790" y="347" text-anchor="middle">4.0</text>
+  <text class="t" x="790" y="378" text-anchor="middle">Compute SGPA/CGPA</text>
+  <text class="xs" x="790" y="396" text-anchor="middle">Σ(C×G) / ΣC</text>
+
+  <rect class="proc" x="455" y="330" width="170" height="80" rx="12"/>
+  <line class="storeln" x1="455" y1="354" x2="625" y2="354" style="stroke:var(--c2s)"/>
+  <text class="t" x="540" y="347" text-anchor="middle">5.0</text>
+  <text class="t" x="540" y="378" text-anchor="middle">Find Toppers</text>
+  <text class="xs" x="540" y="396" text-anchor="middle">4 topper categories</text>
+
+  <rect class="proc" x="230" y="330" width="150" height="80" rx="12"/>
+  <line class="storeln" x1="230" y1="354" x2="380" y2="354" style="stroke:var(--c2s)"/>
+  <text class="t" x="305" y="347" text-anchor="middle">6.0</text>
+  <text class="t" x="305" y="378" text-anchor="middle">View Results</text>
+  <text class="xs" x="305" y="396" text-anchor="middle">search &amp; display</text>
+
+  <!-- flows -->
+  <line class="ln" x1="130" y1="108" x2="205" y2="108" marker-end="url(#arrD1)"/>
+  <text class="xs" x="167" y="100" text-anchor="middle">PDF</text>
+  <line class="ln" x1="205" y1="140" x2="130" y2="140" marker-end="url(#arrD1)"/>
+  <text class="xs" x="167" y="157" text-anchor="middle">status</text>
+
+  <line class="ln" x1="350" y1="160" x2="350" y2="230" marker-end="url(#arrD1)"/>
+  <text class="xs" x="356" y="200">save file</text>
+  <line class="ln" x1="520" y1="230" x2="520" y2="160" marker-end="url(#arrD1)"/>
+  <text class="xs" x="526" y="200">read PDF</text>
+  <line class="ln" x1="600" y1="160" x2="600" y2="230" marker-end="url(#arrD1)"/>
+  <text class="xs" x="606" y="200">student, subject</text>
+  <line class="ln" x1="625" y1="120" x2="705" y2="120" marker-end="url(#arrD1)"/>
+  <text class="xs" x="665" y="113" text-anchor="middle">raw marks</text>
+  <line class="ln" x1="790" y1="46" x2="790" y2="80" marker-end="url(#arrD1)"/>
+  <text class="xs" x="796" y="67">rules</text>
+
+  <path class="ln" d="M875,120 H995 V230" marker-end="url(#arrD1)"/>
+  <text class="xs" x="935" y="113" text-anchor="middle">graded marks</text>
+  <path class="ln" d="M995,266 V370 H875" marker-end="url(#arrD1)"/>
+  <text class="xs" x="935" y="363" text-anchor="middle">marks</text>
+
+  <line class="ln" x1="780" y1="266" x2="780" y2="330" marker-end="url(#arrD1)"/>
+  <text class="xs" x="786" y="302">credits</text>
+  <line class="ln" x1="610" y1="266" x2="610" y2="330" marker-end="url(#arrD1)"/>
+  <text class="xs" x="616" y="302">college, subject</text>
+
+  <line class="ln" x1="705" y1="370" x2="625" y2="370" marker-end="url(#arrD1)"/>
+  <text class="xs" x="665" y="363" text-anchor="middle">marks + GPA</text>
+
+  <line class="ln" x1="790" y1="410" x2="790" y2="470" marker-end="url(#arrD1)"/>
+  <text class="xs" x="796" y="444">SGPA, CGPA</text>
+  <line class="ln" x1="540" y1="470" x2="540" y2="410" marker-end="url(#arrD1)"/>
+  <text class="xs" x="546" y="444">all results</text>
+  <line class="ln" x1="330" y1="470" x2="330" y2="410" marker-end="url(#arrD1)"/>
+  <text class="xs" x="336" y="444">SGPA, CGPA</text>
+
+  <line class="ln" x1="455" y1="370" x2="380" y2="370" marker-end="url(#arrD1)"/>
+  <text class="xs" x="417" y="363" text-anchor="middle">toppers</text>
+
+  <line class="ln" x1="130" y1="358" x2="230" y2="358" marker-end="url(#arrD1)"/>
+  <text class="xs" x="180" y="350" text-anchor="middle">enrollment no.</text>
+  <line class="ln" x1="230" y1="390" x2="130" y2="390" marker-end="url(#arrD1)"/>
+  <text class="xs" x="180" y="407" text-anchor="middle">result / toppers</text>
+</svg>
+</div>
+
+<table>
+  <tr><th style="width:18%">Process</th><th>What it does</th><th style="width:18%">Semester</th></tr>
+  <tr><td>1.0 Upload PDF</td><td>Admin uploads the GGSIPU result PDF. It is saved under <code>/opt/ipuresult/uploads</code> and a <code>RESULT_UPLOAD</code> row is created.</td><td>Sem 1 (file path), Sem 2 (web upload)</td></tr>
+  <tr><td>2.0 Parse &amp; Extract</td><td>PDFBox pulls out the text. Regex finds enrollment numbers, names, paper IDs, credits and internal/external marks, then fills Java objects. New students and subjects go to D2.</td><td>Sem 1</td></tr>
+  <tr><td>3.0 Assign Grades</td><td>Looks up each total mark in the grade scale (D4) to get a grade and grade point, then stores the marks in D3 inside one transaction.</td><td>Sem 1</td></tr>
+  <tr><td>4.0 Compute SGPA/CGPA</td><td>For each student and semester: Σ(credit × grade point) / Σ credits gives the SGPA, which goes to D5. CGPA combines Sem I and Sem II.</td><td>Sem 1</td></tr>
+  <tr><td>5.0 Find Toppers</td><td>Ranks students <b>subject-wise</b> (by marks), <b>college-wise</b> (by CGPA within each college), <b>semester-wise</b> (by SGPA) and <b>overall</b> (by CGPA across the university).</td><td>Sem 2</td></tr>
+  <tr><td>6.0 View Results</td><td>Searches by enrollment number and shows the marksheet, SGPA and CGPA, plus the topper lists.</td><td>Sem 1 (console), Sem 2 (JSP)</td></tr>
+</table>
+
+<h2>4. Topper queries (DBMS)</h2>
+<pre>-- CGPA view
+CREATE VIEW v_cgpa AS
+SELECT enrollment_no, ROUND(SUM(credit_points) / SUM(total_credits), 2) AS cgpa
+FROM semester_result GROUP BY enrollment_no;
+
+-- Subject-wise topper
+SELECT * FROM (
+  SELECT m.paper_id, s.name, m.total_marks,
+         RANK() OVER (PARTITION BY m.paper_id ORDER BY m.total_marks DESC) AS rnk
+  FROM marks m JOIN student s ON s.enrollment_no = m.enrollment_no
+) t WHERE rnk = 1;
+
+-- Semester-wise topper:  PARTITION BY r.semester        ORDER BY r.sgpa DESC  (on semester_result)
+-- College-wise topper:   PARTITION BY s.college_code    ORDER BY c.cgpa DESC  (on v_cgpa JOIN student)
+-- Overall topper:        no partition                   ORDER BY c.cgpa DESC  (RANK keeps ties)</pre>
+
+<h2>5. Suggested Java package layout</h2>
+<pre>src/main/java/ipu/result/
+├── model/        Student, Subject, Mark, SemesterResult, College
+├── parser/       PdfReader (PDFBox), ResultExtractor (regex)
+├── service/      GradeCalculator, GpaCalculator, TopperService
+├── dao/          DBConnection, StudentDAO, SubjectDAO, MarksDAO, ResultDAO
+├── ui/           ConsoleMenu            ← Sem 1
+└── web/          UploadServlet, ResultServlet, TopperServlet + JSP pages  ← Sem 2
+sql/              schema.sql, grade_scale.sql, views.sql
+scripts/          import_all.sh (batch import), backup.sh (cron)</pre>
+
+</main>
+</body>
+</html>
