@@ -1,0 +1,22 @@
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><c:out value="${pageTitle}"/> &middot; GGSIPU Result Analysis</title>
+  <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
+</head>
+<body>
+<header class="site">
+  <div class="wrap bar">
+    <a class="brand" href="${pageContext.request.contextPath}/">GGSIPU Result Analysis</a>
+    <nav>
+      <a href="${pageContext.request.contextPath}/result">Result</a>
+      <a href="${pageContext.request.contextPath}/toppers">Toppers</a>
+      <a href="${pageContext.request.contextPath}/admin">Admin</a>
+    </nav>
+  </div>
+</header>
+<main class="wrap">
