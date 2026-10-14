@@ -5,3 +5,7 @@
 *.pdf binary
 *.png binary
 *.jpg binary
+
+# Maven wrapper line endings
+mvnw text eol=lf
+*.cmd text eol=crlf
