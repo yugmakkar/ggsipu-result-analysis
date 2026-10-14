@@ -5,10 +5,13 @@
 
 <div class="bar">
   <h1>Admin dashboard</h1>
+  <div class="row">
+    <a href="${pageContext.request.contextPath}/admin/students">All students</a>
   <form method="post" action="${pageContext.request.contextPath}/logout">
     <input type="hidden" name="csrf" value="<c:out value='${csrfToken}'/>">
     <button type="submit" class="link">Log out</button>
   </form>
+  </div>
 </div>
 
 <c:if test="${not empty uploadOk}"><p class="ok"><c:out value="${uploadOk}"/></p></c:if>

@@ -10,6 +10,10 @@ import java.io.IOException;
 public class LogoutServlet extends BaseServlet {
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
+        if (!Csrf.isValid(req)) {
+            res.sendError(HttpServletResponse.SC_FORBIDDEN, "Invalid CSRF token");
+            return;
+        }
         HttpSession s = req.getSession(false);
         if (s != null) s.invalidate();
         res.sendRedirect(req.getContextPath() + "/");

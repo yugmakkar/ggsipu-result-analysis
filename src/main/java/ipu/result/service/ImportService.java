@@ -40,6 +40,15 @@ public class ImportService {
     }
 
     ImportSummary persist(ParsedResult parsed, String originalName, String storedName) {
+        // Guard against a PDF whose layout the parser does not recognise: it would
+        // otherwise commit an empty upload and report "0 students". Fail loudly so
+        // the caller rolls back and deletes the stored file.
+        if (parsed.students.isEmpty() || parsed.marks.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "No results recognised in the PDF. The parser expects the format "
+                    + "documented in docs/pdf-format.md; a real GGSIPU gazette needs "
+                    + "ResultExtractor re-tuned to its layout.");
+        }
         Connection c = null;
         try {
             c = db.open();

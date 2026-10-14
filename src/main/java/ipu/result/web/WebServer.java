@@ -5,6 +5,7 @@ import jakarta.servlet.MultipartConfigElement;
 import org.apache.catalina.Context;
 import org.apache.catalina.Wrapper;
 import org.apache.catalina.startup.Tomcat;
+import org.apache.catalina.valves.ErrorReportValve;
 import org.apache.tomcat.util.descriptor.web.FilterDef;
 import org.apache.tomcat.util.descriptor.web.FilterMap;
 
@@ -33,6 +34,12 @@ public class WebServer {
         tomcat.setPort(port);
         tomcat.getConnector(); // ensure a connector exists
 
+        // Don't leak the Tomcat version or stack traces on error pages.
+        ErrorReportValve errorValve = new ErrorReportValve();
+        errorValve.setShowReport(false);
+        errorValve.setShowServerInfo(false);
+        tomcat.getHost().getPipeline().addValve(errorValve);
+
         Context ctx = tomcat.addWebapp("", docBase.getAbsolutePath());
         ctx.getServletContext().setAttribute(Services.KEY, services);
         ctx.setSessionTimeout(30); // minutes
@@ -46,6 +53,7 @@ public class WebServer {
         addServlet(ctx, "login", new LoginServlet(), "/login");
         addServlet(ctx, "logout", new LogoutServlet(), "/logout");
         addServlet(ctx, "dashboard", new DashboardServlet(), "/admin");
+        addServlet(ctx, "students", new StudentsServlet(), "/admin/students");
 
         Wrapper upload = Tomcat.addServlet(ctx, "upload", new UploadServlet());
         upload.setMultipartConfigElement(new MultipartConfigElement(

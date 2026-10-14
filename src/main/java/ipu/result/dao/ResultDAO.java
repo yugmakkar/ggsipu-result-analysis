@@ -1,7 +1,10 @@
 package ipu.result.dao;
 
 import ipu.result.dto.Marksheet;
+import ipu.result.dto.StudentRow;
 import ipu.result.dto.Toppers;
+import ipu.result.model.College;
+import ipu.result.model.Programme;
 import ipu.result.model.SemesterResult;
 
 import java.sql.Connection;
@@ -57,6 +60,54 @@ public class ResultDAO {
                             String.valueOf(rs.getTimestamp(4)), rs.getInt(5)));
                 }
             }
+        }
+        return out;
+    }
+
+    // ---- admin: list all students, optionally filtered ----
+
+    /** All students (admin view), optionally filtered by college and/or programme. */
+    public List<StudentRow> listStudents(Connection c, String collegeCode, String programmeCode)
+            throws SQLException {
+        String col = (collegeCode == null || collegeCode.isBlank()) ? null : collegeCode;
+        String prog = (programmeCode == null || programmeCode.isBlank()) ? null : programmeCode;
+        String sql =
+                "SELECT s.enrollment_no, s.name, s.college_code, s.programme_code, " +
+                "       COALESCE(v.cgpa, 0), COALESCE(v.has_backlog, 0) " +
+                "FROM student s LEFT JOIN v_cgpa v ON v.enrollment_no = s.enrollment_no " +
+                "WHERE (? IS NULL OR s.college_code = ?) " +
+                "  AND (? IS NULL OR s.programme_code = ?) " +
+                "ORDER BY s.college_code, s.programme_code, s.name";
+        List<StudentRow> out = new ArrayList<>();
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, col);  ps.setString(2, col);
+            ps.setString(3, prog); ps.setString(4, prog);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.add(new StudentRow(rs.getString(1), rs.getString(2), rs.getString(3),
+                            rs.getString(4), rs.getDouble(5), rs.getInt(6) != 0));
+                }
+            }
+        }
+        return out;
+    }
+
+    public List<College> listColleges(Connection c) throws SQLException {
+        List<College> out = new ArrayList<>();
+        try (PreparedStatement ps = c.prepareStatement(
+                "SELECT college_code, college_name FROM college ORDER BY college_code");
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) out.add(new College(rs.getString(1), rs.getString(2)));
+        }
+        return out;
+    }
+
+    public List<Programme> listProgrammes(Connection c) throws SQLException {
+        List<Programme> out = new ArrayList<>();
+        try (PreparedStatement ps = c.prepareStatement(
+                "SELECT programme_code, programme_name, duration_years FROM programme ORDER BY programme_code");
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) out.add(new Programme(rs.getString(1), rs.getString(2), rs.getInt(3)));
         }
         return out;
     }

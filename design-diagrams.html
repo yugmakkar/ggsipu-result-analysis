@@ -136,7 +136,7 @@ svg text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 
   <!-- controller band -->
   <rect class="band" x="36" y="210" width="928" height="78" rx="10"/>
-  <text class="xs" x="50" y="228">Controller layer: Servlets / JSP (web) and ConsoleMenu (Sem 1)</text>
+  <text class="xs" x="50" y="228">Controller layer: Servlets / JSP (web) and ConsoleApp (Sem 1)</text>
   <rect class="box" x="50" y="236" width="210" height="44" rx="7"/>
   <text class="t" x="155" y="255" text-anchor="middle">UploadServlet</text>
   <text class="xs" x="155" y="272" text-anchor="middle">POST multipart PDF</text>
@@ -144,10 +144,10 @@ svg text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
   <text class="t" x="385" y="255" text-anchor="middle">ResultServlet</text>
   <text class="xs" x="385" y="272" text-anchor="middle">GET /result?enroll=…</text>
   <rect class="box" x="510" y="236" width="210" height="44" rx="7"/>
-  <text class="t" x="615" y="255" text-anchor="middle">TopperServlet</text>
+  <text class="t" x="615" y="255" text-anchor="middle">ToppersServlet</text>
   <text class="xs" x="615" y="272" text-anchor="middle">GET /toppers?type=…</text>
   <rect class="box" x="740" y="236" width="210" height="44" rx="7"/>
-  <text class="t" x="845" y="255" text-anchor="middle">ConsoleMenu.java</text>
+  <text class="t" x="845" y="255" text-anchor="middle">ConsoleApp.java</text>
   <text class="xs" x="845" y="272" text-anchor="middle">Sem 1 menu-driven UI</text>
 
   <line class="ln" x1="500" y1="288" x2="500" y2="312" marker-end="url(#arrA)"/>
@@ -207,7 +207,7 @@ svg text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
   <text class="s" x="270" y="668" text-anchor="middle">semester_result · grade_scale · result_upload</text>
   <rect class="box" x="520" y="607" width="420" height="78" rx="8"/>
   <text class="t" x="730" y="630" text-anchor="middle">Linux File System</text>
-  <text class="s" x="730" y="650" text-anchor="middle">/opt/ipuresult/uploads/*.pdf (original PDFs)</text>
+  <text class="s" x="730" y="650" text-anchor="middle">uploads/*.pdf (original PDFs, outside webapp)</text>
   <text class="s" x="730" y="668" text-anchor="middle">logs · DB backups (mysqldump via cron)</text>
 </svg>
 </div>
@@ -565,9 +565,9 @@ SELECT * FROM (
 ├── parser/       PdfReader (PDFBox), ResultExtractor (regex)
 ├── service/      GradeCalculator, GpaCalculator, TopperService
 ├── dao/          DBConnection, StudentDAO, SubjectDAO, MarksDAO, ResultDAO
-├── ui/           ConsoleMenu            ← Sem 1
-└── web/          UploadServlet, ResultServlet, TopperServlet + JSP pages  ← Sem 2
-sql/              schema.sql, grade_scale.sql, views.sql
+├── ui/           ConsoleApp            ← Sem 1
+└── web/          UploadServlet, ResultServlet, ToppersServlet + JSP pages  ← Sem 2
+sql/              schema.sql, seed.sql
 scripts/          import_all.sh (batch import), backup.sh (cron)</pre>
 
 </main>

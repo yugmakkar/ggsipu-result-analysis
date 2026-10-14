@@ -28,6 +28,12 @@ curl -s -D - -o /dev/null "$BASE/" | grep -qi "x-content-type-options: nosniff" 
 
 [[ "$(code $BASE/admin)" == 302 ]] && ok "/admin redirects when unauthenticated" \
   || bad "/admin redirects when unauthenticated"
+[[ "$(code $BASE/admin/students)" == 302 ]] && ok "/admin/students redirects when unauthenticated" \
+  || bad "/admin/students redirects when unauthenticated"
+
+# error pages must not leak the server version
+curl -s "$BASE/does-not-exist" | grep -qi "Apache Tomcat" \
+  && bad "error page leaks server info" || ok "error page hides server info"
 
 # login without CSRF -> 403
 [[ "$(code -c "$J" -b "$J" -d "username=$ADMIN_USER&password=$ADMIN_PASS" $BASE/login)" == 403 ]] \
@@ -38,6 +44,8 @@ TOK=$(curl -s -c "$J" -b "$J" "$BASE/login" | grep -oE 'name="csrf" value="[^"]+
 curl -s -o /dev/null -c "$J" -b "$J" --data-urlencode "csrf=$TOK" \
   -d "username=$ADMIN_USER&password=$ADMIN_PASS" "$BASE/login"
 [[ "$(code -b "$J" $BASE/admin)" == 200 ]] && ok "login + dashboard" || bad "login + dashboard"
+[[ "$(code -b "$J" $BASE/admin/students)" == 200 ]] && ok "admin can list all students" \
+  || bad "admin can list all students"
 
 # upload needs a fresh token (session id rotated on login)
 TOK=$(curl -s -b "$J" -c "$J" "$BASE/admin" | grep -oE 'name="csrf" value="[^"]+"' | head -1 | sed -E 's/.*value="([^"]+)".*/\1/')
