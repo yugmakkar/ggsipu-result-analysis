@@ -48,6 +48,15 @@ public class AppConfig {
         return Long.parseLong(pick("UPLOAD_MAX_BYTES", "upload.maxBytes", "20971520"));
     }
 
+    /**
+     * Topper analytics (overall / subject-wise / semester-wise) are under
+     * development and switched off by default. The engine and queries already
+     * exist; set features.toppers=true next semester to turn the pages on.
+     */
+    public boolean toppersEnabled() {
+        return Boolean.parseBoolean(pick("FEATURES_TOPPERS", "features.toppers", "false"));
+    }
+
     private String pick(String env, String key, String dflt) {
         String e = System.getenv(env);
         if (e != null && !e.isBlank()) return e;

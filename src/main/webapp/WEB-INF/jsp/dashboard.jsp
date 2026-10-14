@@ -18,7 +18,7 @@
 <c:if test="${not empty uploadError}"><p class="notice"><c:out value="${uploadError}"/></p></c:if>
 
 <div class="cards">
-  <div class="card"><span class="num"><c:out value="${colleges}"/></span><span>Colleges</span></div>
+  <div class="card"><span class="num"><c:out value="${courses}"/></span><span>Courses</span></div>
   <div class="card"><span class="num"><c:out value="${students}"/></span><span>Students</span></div>
   <div class="card"><span class="num"><c:out value="${uploads}"/></span><span>Uploads</span></div>
 </div>

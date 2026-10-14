@@ -4,9 +4,16 @@
 <%@ include file="_header.jspf" %>
 
 <h1>Toppers</h1>
+
+<c:if test="${not toppersEnabled}">
+  <p class="notice">This section is under development. Overall, semester-wise and
+     subject-wise toppers will be available next semester, once a full year of
+     results has been uploaded.</p>
+</c:if>
+
+<c:if test="${toppersEnabled}">
 <nav class="tabs">
   <a class="${type eq 'overall'  ? 'on' : ''}" href="?type=overall">Overall</a>
-  <a class="${type eq 'college'  ? 'on' : ''}" href="?type=college">College-wise</a>
   <a class="${type eq 'semester' ? 'on' : ''}" href="?type=semester">Semester-wise</a>
   <a class="${type eq 'subject'  ? 'on' : ''}" href="?type=subject">Subject-wise</a>
 </nav>
@@ -50,5 +57,6 @@
     <p class="muted">Students with a backlog are excluded from SGPA/CGPA toppers.</p>
   </c:otherwise>
 </c:choose>
+</c:if>
 
 <%@ include file="_footer.jspf" %>
