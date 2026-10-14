@@ -29,3 +29,6 @@ uploads/
 # OS
 Thumbs.db
 .DS_Store
+
+# Shade plugin artifact
+dependency-reduced-pom.xml
