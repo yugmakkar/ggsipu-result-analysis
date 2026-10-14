@@ -12,7 +12,7 @@ public class DashboardServlet extends BaseServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse res)
             throws ServletException, IOException {
         var t = services().toppers;
-        req.setAttribute("colleges", t.collegeCount());
+        req.setAttribute("courses", t.courseCount());
         req.setAttribute("students", t.studentCount());
         req.setAttribute("uploads", t.uploadCount());
         req.setAttribute("recent", t.recentUploads(10));

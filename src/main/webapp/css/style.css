@@ -38,6 +38,12 @@ h3 { font-size: 15px; margin: 18px 0 6px; }
 .card .num { font-size: 26px; font-weight: 700; color: var(--accent); }
 .card span:last-child { color: var(--muted); font-size: 13px; }
 
+.chips { list-style: none; padding: 0; margin: 10px 0 0; display: flex; gap: 8px; flex-wrap: wrap; }
+.chips li {
+  background: #fff; border: 1px solid var(--line); border-radius: 999px;
+  padding: 6px 14px; font-size: 14px;
+}
+
 .panel {
   background: #fff; border: 1px solid var(--line); border-radius: 10px;
   padding: 16px 18px; margin: 16px 0;

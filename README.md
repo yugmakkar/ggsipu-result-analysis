@@ -4,9 +4,14 @@ Problem Statement 22. Analyze a GGSIPU result PDF: extract each subject's marks,
 compute **SGPA** per semester and the final **CGPA**, and determine the
 **subject-wise, college-wise, semester-wise and overall (university) toppers**.
 
-An admin uploads one result PDF containing **all courses** (many colleges,
-programmes and both semesters). Anyone can then look up a student's result or
-browse the topper lists.
+An admin (only the admin) uploads one result PDF containing **all courses** and
+both semesters. Anyone can then look up a student's result and see which courses
+have results published. The home page lists the courses that have been uploaded.
+
+> **Topper analytics are under development.** Overall / semester-wise /
+> subject-wise toppers are switched off by default (the engine and SQL already
+> exist) and are planned for next semester, once a full year of results is in.
+> Flip `features.toppers=true` in `config.properties` to turn the pages on.
 
 ## Tech stack
 
@@ -84,10 +89,12 @@ java -jar target/result-analysis.jar web
 
 ### Web pages
 
-- `/` — landing page with university-level counts.
+- `/` — landing page: course list (data-driven) and counts.
 - `/result?enroll=<no>` — a student's marksheet, SGPA per semester and CGPA.
-- `/toppers?type=overall|college|semester|subject` — the four topper analyses.
-- `/login`, `/admin` — admin login and the upload dashboard (protected).
+- `/toppers?type=overall|semester|subject` — topper analyses (under development,
+  off by default; see `features.toppers`).
+- `/login`, `/admin`, `/admin/upload` — admin login, dashboard and PDF upload
+  (protected; only a logged-in admin can upload).
 
 ## Using MySQL instead of H2
 

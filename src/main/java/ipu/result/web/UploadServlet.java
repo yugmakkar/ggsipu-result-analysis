@@ -81,7 +81,7 @@ public class UploadServlet extends BaseServlet {
         if (ok != null) req.setAttribute("uploadOk", ok);
         if (error != null) req.setAttribute("uploadError", error);
         var t = services().toppers;
-        req.setAttribute("colleges", t.collegeCount());
+        req.setAttribute("courses", t.courseCount());
         req.setAttribute("students", t.studentCount());
         req.setAttribute("uploads", t.uploadCount());
         req.setAttribute("recent", t.recentUploads(10));

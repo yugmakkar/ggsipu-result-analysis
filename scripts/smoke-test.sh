@@ -31,6 +31,14 @@ curl -s -D - -o /dev/null "$BASE/" | grep -qi "x-content-type-options: nosniff" 
 [[ "$(code $BASE/admin/students)" == 302 ]] && ok "/admin/students redirects when unauthenticated" \
   || bad "/admin/students redirects when unauthenticated"
 
+# only the admin may upload: a multipart POST with no session is redirected, never imported
+[[ "$(code -F "pdf=@$PDF;type=application/pdf" $BASE/admin/upload)" == 302 ]] \
+  && ok "upload blocked when unauthenticated" || bad "upload blocked when unauthenticated"
+
+# home shows Courses, not Colleges
+curl -s "$BASE/" | grep -q "Courses" && ! curl -s "$BASE/" | grep -q "Colleges" \
+  && ok "home shows Courses, not Colleges" || bad "home shows Courses, not Colleges"
+
 # error pages must not leak the server version
 curl -s "$BASE/does-not-exist" | grep -qi "Apache Tomcat" \
   && bad "error page leaks server info" || ok "error page hides server info"
@@ -68,6 +76,15 @@ curl -s -b "$J" -F "csrf=$TOK" -F "pdf=@$PDF;type=application/pdf" "$BASE/admin/
 # XSS: crafted enrollment must be escaped in the page
 curl -s "$BASE/result?enroll=%3Cscript%3E" | grep -q "&lt;script&gt;" \
   && ok "output is HTML-escaped" || bad "output is HTML-escaped"
+
+# toppers are under development: every type returns the notice and leaks no student data
+for ttype in overall semester subject; do
+  body="$(curl -s "$BASE/toppers?type=$ttype")"
+  echo "$body" | grep -qi "under development" \
+    && ! echo "$body" | grep -q "MEERA NAIR" \
+    && ok "toppers?type=$ttype under development, no data leaked" \
+    || bad "toppers?type=$ttype under development, no data leaked"
+done
 
 echo "----"
 echo "PASS=$pass FAIL=$fail"

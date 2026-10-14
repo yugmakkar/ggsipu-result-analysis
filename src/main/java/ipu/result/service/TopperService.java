@@ -55,6 +55,7 @@ public class TopperService {
 
     public int studentCount() { return count("student"); }
     public int collegeCount() { return count("college"); }
+    public int courseCount()  { return count("programme"); }
     public int uploadCount()  { return count("result_upload"); }
 
     private int count(String table) {
