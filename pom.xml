@@ -13,8 +13,8 @@
   <properties>
     <maven.compiler.release>17</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <pdfbox.version>3.0.3</pdfbox.version>
-    <tomcat.version>10.1.31</tomcat.version>
+    <pdfbox.version>3.0.8</pdfbox.version>
+    <tomcat.version>10.1.61</tomcat.version>
     <junit.version>5.11.3</junit.version>
   </properties>
 

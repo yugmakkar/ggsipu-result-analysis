@@ -3,7 +3,10 @@ package ipu.result.service;
 import ipu.result.dao.Db;
 import ipu.result.dao.ResultDAO;
 import ipu.result.dto.Marksheet;
+import ipu.result.dto.StudentRow;
 import ipu.result.dto.Toppers;
+import ipu.result.model.College;
+import ipu.result.model.Programme;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -21,6 +24,22 @@ public class TopperService {
     public List<Toppers.RankTopper>    collegeToppers()  { return read(resultDAO::collegeToppers); }
     public List<Toppers.RankTopper>    semesterToppers() { return read(resultDAO::semesterToppers); }
     public List<Toppers.RankTopper>    overallToppers()  { return read(resultDAO::overallToppers); }
+
+    public List<StudentRow> listStudents(String collegeCode, String programmeCode) {
+        try (Connection c = db.open()) {
+            return resultDAO.listStudents(c, collegeCode, programmeCode);
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
+    public List<College> listColleges() {
+        try (Connection c = db.open()) { return resultDAO.listColleges(c); }
+        catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
+    public List<Programme> listProgrammes() {
+        try (Connection c = db.open()) { return resultDAO.listProgrammes(c); }
+        catch (SQLException e) { throw new RuntimeException(e); }
+    }
 
     public Marksheet marksheet(String enrollmentNo) {
         try (Connection c = db.open()) {

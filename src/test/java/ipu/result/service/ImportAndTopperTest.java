@@ -108,6 +108,29 @@ class ImportAndTopperTest {
     }
 
     @Test
+    void emptyImportIsRejectedAndNothingCommitted() throws Exception {
+        var parsed = new ResultExtractor().extract("just some text\nwith no pipe lines\n");
+        assertThrows(IllegalArgumentException.class,
+                () -> new ImportService(db).persist(parsed, "empty.pdf", "empty.pdf"));
+        try (Connection c = db.open()) {
+            assertEquals(0, new ResultDAO().count(c, "result_upload"));
+            assertEquals(0, new ResultDAO().count(c, "student"));
+        }
+    }
+
+    @Test
+    void listStudentsAndFilter() throws Exception {
+        importFixture();
+        try (Connection c = db.open()) {
+            var dao = new ResultDAO();
+            assertEquals(8, dao.listStudents(c, null, null).size());
+            assertEquals(3, dao.listStudents(c, "164", null).size()); // MAIT: Ananya, Vivaan, Isha
+            assertEquals(2, dao.listColleges(c).size());
+            assertEquals(2, dao.listProgrammes(c).size());
+        }
+    }
+
+    @Test
     void backlogStudentHasBacklogFlag() {
         importFixture();
         Marksheet kabir = toppers.marksheet("00301012024");
