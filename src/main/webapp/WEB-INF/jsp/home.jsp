@@ -34,8 +34,10 @@
   <h2>Check a result</h2>
   <form method="get" action="${pageContext.request.contextPath}/result" class="row">
     <input type="text" name="enroll" placeholder="Enrollment number" required>
+    <input type="text" name="name" placeholder="Student name" required>
     <button type="submit">Search</button>
   </form>
+  <p class="muted">Enter your enrollment number and your name exactly as on record.</p>
 </section>
 
 <section class="panel">

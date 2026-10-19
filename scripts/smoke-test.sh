@@ -77,6 +77,14 @@ curl -s -b "$J" -F "csrf=$TOK" -F "pdf=@$PDF;type=application/pdf" "$BASE/admin/
 curl -s "$BASE/result?enroll=%3Cscript%3E" | grep -q "&lt;script&gt;" \
   && ok "output is HTML-escaped" || bad "output is HTML-escaped"
 
+# result lookup requires enrollment AND matching name (anti-enumeration).
+# The bca fixture has AARAV SHARMA = 00199902023.
+curl -s "$BASE/result?enroll=00199902023&name=AARAV%20SHARMA" | grep -qi "internal assessment" \
+  && ok "lookup with correct name shows marksheet" || bad "lookup with correct name shows marksheet"
+curl -s "$BASE/result?enroll=00199902023" | grep -qi "No matching result" \
+  && ! curl -s "$BASE/result?enroll=00199902023" | grep -qi "internal assessment" \
+  && ok "lookup without name is blocked" || bad "lookup without name is blocked"
+
 # toppers are under development: every type returns the notice and leaks no student data
 for ttype in overall semester subject; do
   body="$(curl -s "$BASE/toppers?type=$ttype")"

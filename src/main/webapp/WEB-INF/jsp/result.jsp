@@ -6,11 +6,17 @@
 <h1>Student result</h1>
 <form method="get" action="${pageContext.request.contextPath}/result" class="row">
   <input type="text" name="enroll" value="<c:out value='${query}'/>" placeholder="Enrollment number" required>
+  <input type="text" name="name" value="<c:out value='${queryName}'/>" placeholder="Student name"
+         <c:if test="${not isAdmin}">required</c:if>>
   <button type="submit">Search</button>
 </form>
+<c:if test="${not isAdmin}">
+  <p class="muted">Enter your enrollment number and your name exactly as on record.</p>
+</c:if>
 
 <c:if test="${notFound}">
-  <p class="notice">No student found for enrollment number "<c:out value='${query}'/>".</p>
+  <p class="notice">No matching result. Check that the enrollment number and name
+     are correct and match our records.</p>
 </c:if>
 
 <c:if test="${not empty ms}">
