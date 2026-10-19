@@ -33,13 +33,29 @@ public class Db {
         return c;
     }
 
-    /** Creates the tables/view (idempotent) and seeds the grade scale. */
+    /**
+     * Creates the tables/view (idempotent) and seeds the grade scale once.
+     *
+     * The seed is applied only when {@code grade_scale} is empty. Re-seeding on
+     * every start used to {@code DELETE FROM grade_scale}, which fails once any
+     * mark references a grade (the server then could not restart after an
+     * import). Running it only when empty keeps init safe to repeat.
+     */
     public void initSchema() {
         try (Connection c = open()) {
             runScript(c, "db/schema.sql");
-            runScript(c, "db/seed.sql");
+            if (isEmpty(c, "grade_scale")) {
+                runScript(c, "db/seed.sql");
+            }
         } catch (SQLException | IOException e) {
             throw new RuntimeException("schema init failed", e);
+        }
+    }
+
+    private boolean isEmpty(Connection c, String table) throws SQLException {
+        try (Statement st = c.createStatement();
+             var rs = st.executeQuery("SELECT COUNT(*) FROM " + table)) {
+            return rs.next() && rs.getInt(1) == 0;
         }
     }
 

@@ -1,4 +1,64 @@
-# Result PDF format (parser grammar)
+# Result PDF formats
+
+The app recognises two PDF layouts. The format is detected automatically on
+upload (from the text PDFBox extracts) and routed to the matching parser.
+
+1. **GGSIPU Internal Assessment sheet** (`InternalAssessmentExtractor`) — the
+   real university format, used for the **Semester-1** showcase. This is what an
+   admin uploads today. See *Internal Assessment format* below.
+2. **End-semester grammar** (`ResultExtractor`) — a synthetic pipe-delimited
+   grammar used by the dormant Semester-2 results/SGPA/topper path. See
+   *End-semester grammar* below.
+
+---
+
+## Internal Assessment format
+
+One PDF holds **one college + one programme** and the internal marks of its
+students across several papers. `InternalAssessmentExtractor` reads the text
+PDFBox produces (with `setSortByPosition(true)`) line by line. The text looks
+like:
+
+(All values below are synthetic / placeholders — no real student data.)
+
+```
+Guru Gobind Singh Indraprastha University, Delhi
+Internal Assessment for Examination JUNE, 2026
+<INSTITUTE NAME> (999)
+<PROGRAMME NAME> (020)
+Paper Code : BCAP312      Paper Name : DATA VISUALIZATION & ANALYTICS LAB
+BATCH SEM/ANNUAL PAPERID ENROLLMENT STUDENT NAME MAX MARKS MARKS
+2023 6 098312 00199902023 AARAV SHARMA 40 37
+...
+Programme - BCA (020)
+School/Institute - DIT (999)
+```
+
+Each data row is `BATCH  SEM  PAPERID(6)  ENROLLMENT(11)  NAME…  MAX  MARKS`:
+
+- **PAPERID** (6 digits) is the subject key; the `Paper Code :` / `Paper Name :`
+  header gives that paper its human code and title, and the row's `MAX` is the
+  internal maximum (e.g. 40 or 100).
+- **ENROLLMENT** (11 digits) encodes the **college code at positions 4–6** and the
+  **programme code at positions 7–9**, so a student's college/programme is taken
+  from the enrollment number itself and never depends on reading the (repeated)
+  page headers.
+- The last token is the internal mark, or `A`/`AB`/`ABSENT` for an absentee
+  (stored as absent, with a NULL mark).
+- The programme's short name (for the home page, e.g. `BCA`) comes from the
+  `Programme - BCA (020)` footer; the institute's full name comes from the header.
+
+Only internal marks are stored — no grade, SGPA or CGPA (those belong to the
+end-semester result). Re-uploading the same sheet updates rows in place; a
+different course's sheet is added alongside without touching the first.
+
+`InternalFixtureGenerator` produces a synthetic sheet in exactly this layout
+(two courses, a multi-word name, a 100-mark paper and an absence) for the demo
+and tests — no real student data is ever committed.
+
+---
+
+## End-semester grammar
 
 The parser (`ResultExtractor`) reads the text that PDFBox extracts from a result
 PDF **line by line**, keeping track of the current college, programme, semester

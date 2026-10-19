@@ -67,8 +67,8 @@ public class UploadServlet extends BaseServlet {
         try {
             ImportService.ImportSummary s =
                     services.importService.importPdf(target.toFile(), originalName, storedName);
-            String msg = String.format("Imported %s: %d students, %d marks, %d semester results (session %s).",
-                    originalName, s.students(), s.marks(), s.semesterResults(), s.session());
+            String msg = String.format("Imported %s: %d students, %d marks (session %s).",
+                    originalName, s.students(), s.marks(), s.session());
             finish(req, res, msg, null);
         } catch (Exception e) {
             Files.deleteIfExists(target); // roll back the stored file too

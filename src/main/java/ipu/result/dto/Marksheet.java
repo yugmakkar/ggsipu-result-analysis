@@ -11,7 +11,7 @@ import java.util.List;
  */
 public record Marksheet(String enrollmentNo, String name, String collegeCode, String collegeName,
                         String programmeCode, String programmeName, double cgpa, boolean hasBacklog,
-                        List<SemesterBlock> semesters) {
+                        boolean internalOnly, List<SemesterBlock> semesters) {
 
     public String getEnrollmentNo() { return enrollmentNo; }
     public String getName() { return name; }
@@ -21,6 +21,8 @@ public record Marksheet(String enrollmentNo, String name, String collegeCode, St
     public String getProgrammeName() { return programmeName; }
     public double getCgpa() { return cgpa; }
     public boolean isHasBacklog() { return hasBacklog; }
+    /** True when only internal-assessment marks exist (no end-semester results yet). */
+    public boolean isInternalOnly() { return internalOnly; }
     public List<SemesterBlock> getSemesters() { return semesters; }
 
     public record SemesterBlock(int semester, double sgpa, boolean hasBacklog, List<MarkRow> rows) {
@@ -30,11 +32,13 @@ public record Marksheet(String enrollmentNo, String name, String collegeCode, St
         public List<MarkRow> getRows() { return rows; }
     }
 
-    public record MarkRow(String paperId, String subjectName, int credits,
+    public record MarkRow(String paperId, String paperCode, String subjectName, int credits, Integer internalMax,
                           Integer internal, Integer external, Integer total, String grade, boolean absent) {
         public String getPaperId() { return paperId; }
+        public String getPaperCode() { return paperCode; }
         public String getSubjectName() { return subjectName; }
         public int getCredits() { return credits; }
+        public Integer getInternalMax() { return internalMax; }
         public Integer getInternal() { return internal; }
         public Integer getExternal() { return external; }
         public Integer getTotal() { return total; }

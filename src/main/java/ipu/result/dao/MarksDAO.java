@@ -42,6 +42,33 @@ public class MarksDAO {
         for (Mark m : marks) insert(c, m, uploadId);
     }
 
+    /**
+     * Upserts an internal-assessment mark keyed on (enrollment, paper). Only the
+     * internal column, upload id and absent flag are written; any existing
+     * external/total/grade (from an end-semester import) are left untouched, and
+     * a re-upload of the same sheet updates in place rather than duplicating.
+     */
+    public void upsertInternal(Connection c, Mark m, int uploadId) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement(
+                "UPDATE marks SET internal_marks=?, upload_id=?, absent=? WHERE enrollment_no=? AND paper_id=?")) {
+            setIntOrNull(ps, 1, m.internal());
+            ps.setInt(2, uploadId);
+            ps.setBoolean(3, m.absent());
+            ps.setString(4, m.enrollmentNo());
+            ps.setString(5, m.paperId());
+            if (ps.executeUpdate() > 0) return;
+        }
+        try (PreparedStatement ps = c.prepareStatement(
+                "INSERT INTO marks (enrollment_no, paper_id, upload_id, internal_marks, absent) VALUES (?,?,?,?,?)")) {
+            ps.setString(1, m.enrollmentNo());
+            ps.setString(2, m.paperId());
+            ps.setInt(3, uploadId);
+            setIntOrNull(ps, 4, m.internal());
+            ps.setBoolean(5, m.absent());
+            ps.executeUpdate();
+        }
+    }
+
     private static void setIntOrNull(PreparedStatement ps, int idx, Integer v) throws SQLException {
         if (v == null) ps.setNull(idx, Types.INTEGER);
         else ps.setInt(idx, v);

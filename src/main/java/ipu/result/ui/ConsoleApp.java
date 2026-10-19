@@ -79,6 +79,19 @@ public class ConsoleApp {
         if (ms == null) { System.out.println("Student not found."); return; }
         System.out.printf("%n%s  (%s)%n", ms.name(), ms.enrollmentNo());
         System.out.printf("%s | %s%n", nz(ms.collegeName()), nz(ms.programmeName()));
+        if (ms.internalOnly()) {
+            for (Marksheet.SemesterBlock b : ms.semesters()) {
+                System.out.printf("%n Semester %d   internal assessment%n", b.semester());
+                System.out.println(" ---------------------------------------------");
+                for (Marksheet.MarkRow r : b.rows()) {
+                    String mark = r.absent() ? "AB" : r.internal() + "/" + r.internalMax();
+                    System.out.printf("  %-10s %-28s %s%n",
+                            nz(r.paperCode()), trim(r.subjectName(), 28), mark);
+                }
+            }
+            System.out.println("\n (SGPA/CGPA appear after end-semester results.)");
+            return;
+        }
         for (Marksheet.SemesterBlock b : ms.semesters()) {
             System.out.printf("%n Semester %d   SGPA %.2f%s%n", b.semester(), b.sgpa(),
                     b.hasBacklog() ? "  (backlog)" : "");

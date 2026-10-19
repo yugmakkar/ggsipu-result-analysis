@@ -4,6 +4,7 @@ import ipu.result.config.AppConfig;
 import ipu.result.dao.AdminDAO;
 import ipu.result.dao.Db;
 import ipu.result.parser.FixturePdfGenerator;
+import ipu.result.parser.InternalFixtureGenerator;
 import ipu.result.service.ImportService;
 import ipu.result.service.PasswordHasher;
 import ipu.result.ui.ConsoleApp;
@@ -33,6 +34,16 @@ public class Main {
             case "import"     -> runImport(cfg, args);
             case "create-admin" -> createAdmin(cfg, args);
             case "gen-fixture"  -> {
+                // A synthetic Internal Assessment sheet (the Semester-1 format).
+                File out = new File(args.length > 1 ? args[1] : "sample-internal.pdf");
+                String course = args.length > 2 ? args[2].toLowerCase() : "bca";
+                var spec = course.equals("mca")
+                        ? InternalFixtureGenerator.mca() : InternalFixtureGenerator.bca();
+                new InternalFixtureGenerator().generate(out, spec);
+                System.out.println("Wrote " + out.getAbsolutePath() + " (" + spec.programmeShort() + ")");
+            }
+            case "gen-fixture-legacy" -> {
+                // The end-semester (Sem-2) sample, kept for the dormant results path.
                 File out = new File(args.length > 1 ? args[1] : "sample-result.pdf");
                 new FixturePdfGenerator().generate(out);
                 System.out.println("Wrote " + out.getAbsolutePath());
@@ -61,8 +72,8 @@ public class Main {
         Db db = new Db(cfg.dbUrl(), cfg.dbUser(), cfg.dbPassword());
         db.initSchema();
         var s = new ImportService(db).importPdf(pdf, pdf.getName(), pdf.getName());
-        System.out.printf("Imported %d students, %d marks, %d semester results (session %s).%n",
-                s.students(), s.marks(), s.semesterResults(), s.session());
+        System.out.printf("Imported %d students, %d marks (session %s).%n",
+                s.students(), s.marks(), s.session());
     }
 
     private static void createAdmin(AppConfig cfg, String[] args) {
@@ -110,6 +121,7 @@ public class Main {
                   console                  Semester 1 console menu
                   import <file.pdf>        import one result PDF
                   create-admin <username>  create an admin account
-                  gen-fixture [out.pdf]    write the sample result PDF""");
+                  gen-fixture [out.pdf] [bca|mca]  write a sample Internal Assessment PDF
+                  gen-fixture-legacy [out.pdf]     write the end-semester sample PDF""");
     }
 }

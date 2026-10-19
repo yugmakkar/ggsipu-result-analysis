@@ -1,6 +1,5 @@
 -- GGSIPU grade scale (verify against your batch's ordinance before relying on it).
 -- Boundaries are inclusive on both ends.
-DELETE FROM grade_scale;
 INSERT INTO grade_scale (grade, min_marks, max_marks, grade_point) VALUES
   ('O',  90, 100, 10),
   ('A+', 75,  89,  9),

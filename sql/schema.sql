@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS subject (
     paper_code      VARCHAR(20),
     subject_name    VARCHAR(150) NOT NULL,
     credits         INT          NOT NULL,
+    internal_max    INT,
     semester        INT          NOT NULL,
     programme_code  VARCHAR(10)  NOT NULL,
     CONSTRAINT fk_subject_programme FOREIGN KEY (programme_code) REFERENCES programme(programme_code)

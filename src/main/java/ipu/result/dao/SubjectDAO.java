@@ -19,10 +19,10 @@ import static ipu.result.dao.StudentDAO.update;
 public class SubjectDAO {
 
     public void upsert(Connection c, Subject s) throws SQLException {
-        if (!update(c, "UPDATE subject SET paper_code=?, subject_name=?, credits=?, semester=?, programme_code=? WHERE paper_id=?",
-                s.paperCode(), s.name(), s.credits(), s.semester(), s.programmeCode(), s.paperId())) {
-            exec(c, "INSERT INTO subject (paper_id, paper_code, subject_name, credits, semester, programme_code) VALUES (?,?,?,?,?,?)",
-                    s.paperId(), s.paperCode(), s.name(), s.credits(), s.semester(), s.programmeCode());
+        if (!update(c, "UPDATE subject SET paper_code=?, subject_name=?, credits=?, internal_max=?, semester=?, programme_code=? WHERE paper_id=?",
+                s.paperCode(), s.name(), s.credits(), s.internalMax(), s.semester(), s.programmeCode(), s.paperId())) {
+            exec(c, "INSERT INTO subject (paper_id, paper_code, subject_name, credits, internal_max, semester, programme_code) VALUES (?,?,?,?,?,?,?)",
+                    s.paperId(), s.paperCode(), s.name(), s.credits(), s.internalMax(), s.semester(), s.programmeCode());
         }
     }
 

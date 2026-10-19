@@ -3,15 +3,15 @@
 # Prereqs:
 #   - server running (java -jar target/result-analysis.jar web)
 #   - an admin account created (java -jar target/result-analysis.jar create-admin admin)
-#   - a sample PDF (java -jar target/result-analysis.jar gen-fixture sample.pdf)
+#   - a sample PDF (java -jar target/result-analysis.jar gen-fixture sample-bca.pdf bca)
 #
-# Usage:  BASE=http://localhost:8080 ADMIN_USER=admin ADMIN_PASS=... PDF=sample.pdf scripts/smoke-test.sh
+# Usage:  BASE=http://localhost:8080 ADMIN_USER=admin ADMIN_PASS=... PDF=sample-bca.pdf scripts/smoke-test.sh
 set -uo pipefail
 
 BASE="${BASE:-http://localhost:8080}"
 ADMIN_USER="${ADMIN_USER:-admin}"
 ADMIN_PASS="${ADMIN_PASS:-}"
-PDF="${PDF:-sample.pdf}"
+PDF="${PDF:-sample-bca.pdf}"
 J="$(mktemp)"
 pass=0; fail=0
 ok()  { echo "  PASS  $1"; pass=$((pass+1)); }
@@ -81,7 +81,7 @@ curl -s "$BASE/result?enroll=%3Cscript%3E" | grep -q "&lt;script&gt;" \
 for ttype in overall semester subject; do
   body="$(curl -s "$BASE/toppers?type=$ttype")"
   echo "$body" | grep -qi "under development" \
-    && ! echo "$body" | grep -q "MEERA NAIR" \
+    && ! echo "$body" | grep -q "AARAV SHARMA" \
     && ok "toppers?type=$ttype under development, no data leaked" \
     || bad "toppers?type=$ttype under development, no data leaked"
 done

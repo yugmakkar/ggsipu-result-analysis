@@ -4,14 +4,17 @@ Problem Statement 22. Analyze a GGSIPU result PDF: extract each subject's marks,
 compute **SGPA** per semester and the final **CGPA**, and determine the
 **subject-wise, college-wise, semester-wise and overall (university) toppers**.
 
-An admin (only the admin) uploads one result PDF containing **all courses** and
-both semesters. Anyone can then look up a student's result and see which courses
-have results published. The home page lists the courses that have been uploaded.
+**Semester-1 scope (current):** an admin — and only the admin — uploads a GGSIPU
+**Internal Assessment** PDF for a course. The system reads the course and each
+paper straight from the PDF and stores every student's internal marks per
+subject. Upload one PDF per course; the home page then lists the courses that
+have results, and anyone can look up a student's internal marksheet.
 
-> **Topper analytics are under development.** Overall / semester-wise /
-> subject-wise toppers are switched off by default (the engine and SQL already
-> exist) and are planned for next semester, once a full year of results is in.
-> Flip `features.toppers=true` in `config.properties` to turn the pages on.
+> **Under development (Semester 2).** SGPA / CGPA, grades and the topper
+> analytics (overall / semester-wise / subject-wise) are switched off by default
+> — they belong to the end-semester result. The engine and SQL already exist;
+> flip `features.toppers=true` in `config.properties` to turn the topper pages on
+> once end-semester data is available.
 
 ## Tech stack
 
@@ -28,11 +31,12 @@ Core subjects do the work; one extra library reads the PDF.
 
 ## Two-semester plan
 
-- **Semester 1 — engine + console:** PDF parsing (PDFBox + regex), the MySQL
-  schema and JDBC DAOs, grade/SGPA/CGPA calculation, and a menu-driven console
-  UI (`console`).
-- **Semester 2 — web + analytics:** Servlets + JSP on Tomcat, admin upload, the
-  four topper analyses, and deployment/security hardening.
+- **Semester 1 — internal assessment:** parse GGSIPU Internal Assessment PDFs
+  (PDFBox + regex), the schema and JDBC DAOs, storing each student's per-subject
+  internal marks, and looking them up (web result page + `console`).
+- **Semester 2 — end-semester & analytics:** end-semester results, grade /
+  SGPA / CGPA calculation, and the topper analyses (overall / semester-wise /
+  subject-wise) — currently under development behind `features.toppers`.
 
 Design diagrams (architecture, ERD, DFD) are in
 [`design-diagrams.html`](design-diagrams.html) — open it in a browser.
@@ -67,21 +71,23 @@ PowerShell):
 All commands go through the one jar:
 
 ```bash
-# 1. make a sample result PDF (stand-in for a real gazette)
-java -jar target/result-analysis.jar gen-fixture sample-result.pdf
+# 1. make sample Internal Assessment PDFs (two courses, synthetic data)
+java -jar target/result-analysis.jar gen-fixture sample-bca.pdf bca
+java -jar target/result-analysis.jar gen-fixture sample-mca.pdf mca
 
-# 2a. Semester-1 console UI
-java -jar target/result-analysis.jar console
-
-# 2b. or import a PDF straight from the command line
-java -jar target/result-analysis.jar import sample-result.pdf
-
-# 3. create an admin for the web UI (password is prompted, or via ADMIN_PASSWORD)
+# 2. create an admin for the web UI (password is prompted, or via ADMIN_PASSWORD)
 java -jar target/result-analysis.jar create-admin admin
 
-# 4. start the web app  ->  http://localhost:8080
+# 3. start the web app  ->  http://localhost:8080
 java -jar target/result-analysis.jar web
+#    then log in at /admin and upload the PDF(s).
+
+# (optional) import a PDF straight from the command line instead
+java -jar target/result-analysis.jar import sample-bca.pdf
 ```
+
+> If you pulled an update that changed the database schema, delete the local
+> `data/` folder first so it is recreated (the embedded H2 DB is for local runs).
 
 > Run the `web` command from the project root (it serves JSPs from
 > `src/main/webapp`). For a standalone deployment, place a `webapp` folder next
@@ -90,7 +96,8 @@ java -jar target/result-analysis.jar web
 ### Web pages
 
 - `/` — landing page: course list (data-driven) and counts.
-- `/result?enroll=<no>` — a student's marksheet, SGPA per semester and CGPA.
+- `/result?enroll=<no>` — a student's internal marksheet (per-subject internal
+  marks); SGPA/CGPA appear here only once end-semester results are imported.
 - `/toppers?type=overall|semester|subject` — topper analyses (under development,
   off by default; see `features.toppers`).
 - `/login`, `/admin`, `/admin/upload` — admin login, dashboard and PDF upload
@@ -130,13 +137,16 @@ CGPA               = Σ credit_points(all sems) / Σ credits(all sems)
 Students with a backlog (an F or an absence) are excluded from the SGPA/CGPA
 topper lists. **Verify the grade boundaries against your batch's ordinance.**
 
-## Real result PDFs
+## PDF formats
 
-`ResultExtractor` reads a clean, documented line grammar
-([`docs/pdf-format.md`](docs/pdf-format.md)) that `FixturePdfGenerator` produces.
-A **real** GGSIPU gazette has a messier multi-column layout, so when you have a
-real PDF you re-tune only `ResultExtractor` — everything downstream is unchanged.
-The current parser is **not** claimed to read real gazettes as-is.
+Two layouts are supported and detected automatically on upload
+([`docs/pdf-format.md`](docs/pdf-format.md)):
+
+- **GGSIPU Internal Assessment sheets** (`InternalAssessmentExtractor`) — the
+  real university format used for Semester 1. One PDF per course; the parser is
+  the single place to re-tune if the university changes the layout.
+- A synthetic **end-semester grammar** (`ResultExtractor`) feeding the dormant
+  Semester-2 results/SGPA/topper path.
 
 ## Testing
 
@@ -148,7 +158,7 @@ bash scripts/smoke-test.sh                # live HTTP + security checks (see bel
 Smoke test (server must be running, admin created, sample PDF present):
 
 ```bash
-BASE=http://localhost:8080 ADMIN_USER=admin ADMIN_PASS=... PDF=sample-result.pdf \
+BASE=http://localhost:8080 ADMIN_USER=admin ADMIN_PASS=... PDF=sample-bca.pdf \
   bash scripts/smoke-test.sh
 ```
 
@@ -172,7 +182,8 @@ docs/                           pdf-format.md, SECURITY.md
 design-diagrams.html            architecture, ERD, DFD
 src/main/java/ipu/result/
   model/                        Student, Subject, Mark, SemesterResult, College, Programme
-  parser/                       PdfReader (PDFBox), ResultExtractor, FixturePdfGenerator
+  parser/                       PdfReader (PDFBox), InternalAssessmentExtractor,
+                                ResultExtractor, fixture generators
   service/                      GradeScale, GradeCalculator, GpaCalculator, ImportService,
                                 TopperService, PasswordHasher
   dao/                          Db, StudentDAO, SubjectDAO, MarksDAO, ResultDAO, AdminDAO

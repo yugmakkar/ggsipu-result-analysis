@@ -2,6 +2,7 @@ package ipu.result.service;
 
 import ipu.result.dao.*;
 import ipu.result.model.*;
+import ipu.result.parser.InternalAssessmentExtractor;
 import ipu.result.parser.ParsedResult;
 import ipu.result.parser.PdfReader;
 import ipu.result.parser.ResultExtractor;
@@ -32,11 +33,66 @@ public class ImportService {
 
     public record ImportSummary(int uploadId, int students, int marks, int semesterResults, String session) {}
 
-    /** Reads, parses and imports a PDF file. {@code storedName} is the on-disk name. */
+    /**
+     * Reads, parses and imports a PDF file. {@code storedName} is the on-disk name.
+     *
+     * The format is detected from the text: a GGSIPU <i>Internal Assessment</i>
+     * sheet is parsed and stored as internal marks (the Semester-1 path); any
+     * other PDF falls through to the end-semester grammar.
+     */
     public ImportSummary importPdf(File pdf, String originalName, String storedName) throws IOException {
         String text = new PdfReader().readText(pdf);
+        if (text.contains(InternalAssessmentExtractor.MARKER)) {
+            ParsedResult parsed = new InternalAssessmentExtractor().extract(text);
+            return persistInternal(parsed, originalName, storedName);
+        }
         ParsedResult parsed = new ResultExtractor().extract(text);
         return persist(parsed, originalName, storedName);
+    }
+
+    /**
+     * Stores internal-assessment marks: reference data, students and one
+     * internal mark per (student, paper). No grades or SGPA are computed — those
+     * belong to the end-semester result. Runs as a single transaction; a
+     * re-upload of the same sheet updates rows in place.
+     */
+    ImportSummary persistInternal(ParsedResult parsed, String originalName, String storedName) {
+        if (parsed.students.isEmpty() || parsed.marks.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "No internal-assessment rows recognised in the PDF. Expected GGSIPU "
+                    + "internal marks sheets (see docs/pdf-format.md).");
+        }
+        Connection c = null;
+        try {
+            c = db.open();
+            c.setAutoCommit(false);
+
+            int uploadId = insertUpload(c, originalName, storedName, parsed.examSession);
+
+            for (College col : parsed.colleges.values())  studentDAO.upsertCollege(c, col);
+            for (Programme p : parsed.programmes.values()) studentDAO.upsertProgramme(c, p);
+            for (Subject s : parsed.subjects.values())     subjectDAO.upsert(c, s);
+
+            Map<String, Student> uniqueStudents = new LinkedHashMap<>();
+            for (Student s : parsed.students) uniqueStudents.put(s.enrollmentNo(), s);
+            for (Student s : uniqueStudents.values())      studentDAO.upsertStudent(c, s);
+
+            int markCount = 0;
+            for (Mark m : parsed.marks) {
+                marksDAO.upsertInternal(c, m, uploadId);
+                markCount++;
+            }
+
+            updateUploadRowCount(c, uploadId, markCount);
+            c.commit();
+            return new ImportSummary(uploadId, uniqueStudents.size(), markCount, 0, parsed.examSession);
+
+        } catch (Exception e) {
+            rollbackQuietly(c);
+            throw new RuntimeException("import failed and was rolled back: " + e.getMessage(), e);
+        } finally {
+            closeQuietly(c);
+        }
     }
 
     ImportSummary persist(ParsedResult parsed, String originalName, String storedName) {

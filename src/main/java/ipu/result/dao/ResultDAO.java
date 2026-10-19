@@ -12,7 +12,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static ipu.result.dao.StudentDAO.exec;
 import static ipu.result.dao.StudentDAO.update;
@@ -133,39 +135,61 @@ public class ResultDAO {
             }
         }
 
+        // SGPA/CGPA only exist once end-semester results are imported.
         double cgpa = 0.0;
-        boolean hasBacklog = false;
+        boolean cgpaBacklog = false;
         try (PreparedStatement ps = c.prepareStatement(
                 "SELECT cgpa, has_backlog FROM v_cgpa WHERE enrollment_no=?")) {
             ps.setString(1, enrollmentNo);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     cgpa = rs.getDouble(1);
-                    hasBacklog = rs.getInt(2) != 0;
+                    cgpaBacklog = rs.getInt(2) != 0;
                 }
             }
         }
 
-        List<Marksheet.SemesterBlock> blocks = new ArrayList<>();
+        // SGPA per semester, if computed.
+        Map<Integer, double[]> sgpaBySem = new LinkedHashMap<>();
         try (PreparedStatement ps = c.prepareStatement(
-                "SELECT semester, sgpa, has_backlog FROM semester_result WHERE enrollment_no=? ORDER BY semester")) {
+                "SELECT semester, sgpa, has_backlog FROM semester_result WHERE enrollment_no=?")) {
+            ps.setString(1, enrollmentNo);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) sgpaBySem.put(rs.getInt(1), new double[]{rs.getDouble(2), rs.getBoolean(3) ? 1 : 0});
+            }
+        }
+
+        // Semesters are derived from the marks the student actually has, so an
+        // internal-only student (no semester_result row) still shows a marksheet.
+        List<Marksheet.SemesterBlock> blocks = new ArrayList<>();
+        boolean anyExternal = false;
+        try (PreparedStatement ps = c.prepareStatement(
+                "SELECT DISTINCT su.semester FROM marks m JOIN subject su ON su.paper_id = m.paper_id " +
+                "WHERE m.enrollment_no=? ORDER BY su.semester")) {
             ps.setString(1, enrollmentNo);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     int sem = rs.getInt(1);
-                    blocks.add(new Marksheet.SemesterBlock(sem, rs.getDouble(2), rs.getBoolean(3),
-                            marksForSemester(c, enrollmentNo, sem)));
+                    List<Marksheet.MarkRow> rows = marksForSemester(c, enrollmentNo, sem);
+                    for (Marksheet.MarkRow r : rows) {
+                        if (r.external() != null || r.total() != null) anyExternal = true;
+                    }
+                    double[] sg = sgpaBySem.get(sem);
+                    blocks.add(new Marksheet.SemesterBlock(
+                            sem, sg == null ? 0.0 : sg[0], sg != null && sg[1] != 0, rows));
                 }
             }
         }
-        return new Marksheet(enrollmentNo, name, collegeCode, collegeName, progCode, progName, cgpa, hasBacklog, blocks);
+        boolean internalOnly = !anyExternal;
+        return new Marksheet(enrollmentNo, name, collegeCode, collegeName, progCode, progName,
+                cgpa, cgpaBacklog, internalOnly, blocks);
     }
 
     private List<Marksheet.MarkRow> marksForSemester(Connection c, String enrollmentNo, int semester) throws SQLException {
         List<Marksheet.MarkRow> rows = new ArrayList<>();
         try (PreparedStatement ps = c.prepareStatement(
-                "SELECT su.paper_id, su.subject_name, su.credits, m.internal_marks, m.external_marks, " +
-                "m.total_marks, m.grade, m.absent " +
+                "SELECT su.paper_id, su.paper_code, su.subject_name, su.credits, su.internal_max, " +
+                "m.internal_marks, m.external_marks, m.total_marks, m.grade, m.absent " +
                 "FROM marks m JOIN subject su ON su.paper_id = m.paper_id " +
                 "WHERE m.enrollment_no=? AND su.semester=? ORDER BY su.paper_id")) {
             ps.setString(1, enrollmentNo);
@@ -173,9 +197,9 @@ public class ResultDAO {
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     rows.add(new Marksheet.MarkRow(
-                            rs.getString(1), rs.getString(2), rs.getInt(3),
-                            intOrNull(rs, 4), intOrNull(rs, 5), intOrNull(rs, 6),
-                            rs.getString(7), rs.getBoolean(8)));
+                            rs.getString(1), rs.getString(2), rs.getString(3), rs.getInt(4), intOrNull(rs, 5),
+                            intOrNull(rs, 6), intOrNull(rs, 7), intOrNull(rs, 8),
+                            rs.getString(9), rs.getBoolean(10)));
                 }
             }
         }
