@@ -2,6 +2,9 @@
 
 Thanks for helping out! This project is open source under the MIT license.
 
+By participating, you agree to abide by our
+[Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## Get set up (only Java is required)
 
 You do **not** need to install Maven — the project ships with the Maven Wrapper
