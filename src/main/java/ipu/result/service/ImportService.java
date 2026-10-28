@@ -2,6 +2,7 @@ package ipu.result.service;
 
 import ipu.result.dao.*;
 import ipu.result.model.*;
+import ipu.result.parser.GazetteResultExtractor;
 import ipu.result.parser.InternalAssessmentExtractor;
 import ipu.result.parser.ParsedResult;
 import ipu.result.parser.PdfReader;
@@ -36,15 +37,23 @@ public class ImportService {
     /**
      * Reads, parses and imports a PDF file. {@code storedName} is the on-disk name.
      *
-     * The format is detected from the text: a GGSIPU <i>Internal Assessment</i>
-     * sheet is parsed and stored as internal marks (the Semester-1 path); any
-     * other PDF falls through to the end-semester grammar.
+     * The format is detected from the text:
+     * <ul>
+     *   <li>a GGSIPU <i>Internal Assessment</i> sheet is stored as internal marks;</li>
+     *   <li>a real end-semester <i>Result Tabulation Sheet</i> (the gazette) is
+     *       parsed by {@link GazetteResultExtractor} and graded;</li>
+     *   <li>anything else falls through to the pipe-delimited fixture grammar.</li>
+     * </ul>
      */
     public ImportSummary importPdf(File pdf, String originalName, String storedName) throws IOException {
         String text = new PdfReader().readText(pdf);
         if (text.contains(InternalAssessmentExtractor.MARKER)) {
             ParsedResult parsed = new InternalAssessmentExtractor().extract(text);
             return persistInternal(parsed, originalName, storedName);
+        }
+        if (text.contains(GazetteResultExtractor.MARKER)) {
+            ParsedResult parsed = new GazetteResultExtractor().extract(text);
+            return persistGazette(parsed, originalName, storedName);
         }
         ParsedResult parsed = new ResultExtractor().extract(text);
         return persist(parsed, originalName, storedName);
@@ -86,6 +95,74 @@ public class ImportService {
             updateUploadRowCount(c, uploadId, markCount);
             c.commit();
             return new ImportSummary(uploadId, uniqueStudents.size(), markCount, 0, parsed.examSession);
+
+        } catch (Exception e) {
+            rollbackQuietly(c);
+            throw new RuntimeException("import failed and was rolled back: " + e.getMessage(), e);
+        } finally {
+            closeQuietly(c);
+        }
+    }
+
+    /**
+     * Stores an end-semester gazette. Each mark is upserted on (student, paper),
+     * so re-importing a "revised" sheet that re-states only a couple of papers
+     * leaves the student's other papers intact. After the marks are written, each
+     * affected (student, semester) has its SGPA recomputed from <i>all</i> of that
+     * semester's declared marks in the database &mdash; not just the ones in this
+     * PDF &mdash; and the CGPA view follows. Runs as one transaction.
+     */
+    ImportSummary persistGazette(ParsedResult parsed, String originalName, String storedName) {
+        if (parsed.students.isEmpty() || parsed.marks.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "No results recognised in the PDF. Expected a GGSIPU end-semester "
+                    + "Result Tabulation Sheet (see docs/pdf-format.md).");
+        }
+        Connection c = null;
+        try {
+            c = db.open();
+            c.setAutoCommit(false);
+
+            int uploadId = insertUpload(c, originalName, storedName, parsed.examSession);
+
+            for (College col : parsed.colleges.values())   studentDAO.upsertCollege(c, col);
+            for (Programme p : parsed.programmes.values())  studentDAO.upsertProgramme(c, p);
+            for (Subject s : parsed.subjects.values())      subjectDAO.upsert(c, s);
+
+            Map<String, Student> uniqueStudents = new LinkedHashMap<>();
+            for (Student s : parsed.students) uniqueStudents.put(s.enrollmentNo(), s);
+            for (Student s : uniqueStudents.values())       studentDAO.upsertStudent(c, s);
+
+            GradeScale scale = subjectDAO.loadGradeScale(c);
+            GradeCalculator grader = new GradeCalculator(scale);
+            GpaCalculator gpa = new GpaCalculator(scale);
+            Map<String, Integer> semesterByPaper = subjectDAO.semesterByPaper(c);
+
+            // Write every mark, remembering which (student, semester) pairs to re-aggregate.
+            Map<String, Set<Integer>> touched = new LinkedHashMap<>();
+            int markCount = 0;
+            for (Mark m : parsed.marks) {
+                Integer sem = semesterByPaper.get(m.paperId());
+                if (sem == null) throw new IllegalStateException("mark for unknown paper " + m.paperId());
+                marksDAO.upsertEndSem(c, grader.assign(m), uploadId);
+                touched.computeIfAbsent(m.enrollmentNo(), k -> new LinkedHashSet<>()).add(sem);
+                markCount++;
+            }
+
+            Map<String, Integer> creditsByPaper = subjectDAO.creditsByPaper(c);
+            int semCount = 0;
+            for (var e : touched.entrySet()) {
+                for (int sem : e.getValue()) {
+                    List<Mark> marks = marksDAO.gradedMarksForSemester(c, e.getKey(), sem);
+                    if (marks.isEmpty()) continue;
+                    resultDAO.upsertSemesterResult(c, gpa.semester(e.getKey(), sem, marks, creditsByPaper));
+                    semCount++;
+                }
+            }
+
+            updateUploadRowCount(c, uploadId, markCount);
+            c.commit();
+            return new ImportSummary(uploadId, uniqueStudents.size(), markCount, semCount, parsed.examSession);
 
         } catch (Exception e) {
             rollbackQuietly(c);

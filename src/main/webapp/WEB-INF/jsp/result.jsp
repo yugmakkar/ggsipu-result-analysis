@@ -5,18 +5,23 @@
 
 <h1>Student result</h1>
 <form method="get" action="${pageContext.request.contextPath}/result" class="row">
-  <input type="text" name="enroll" value="<c:out value='${query}'/>" placeholder="Enrollment number" required>
-  <input type="text" name="name" value="<c:out value='${queryName}'/>" placeholder="Student name"
-         <c:if test="${not isAdmin}">required</c:if>>
+  <input type="text" name="enroll" value="<c:out value='${query}'/>"
+         placeholder="Enrollment number" inputmode="numeric" required>
   <button type="submit">Search</button>
 </form>
-<c:if test="${not isAdmin}">
-  <p class="muted">Enter your enrollment number and your name exactly as on record.</p>
-</c:if>
+<p class="muted">Enter your enrollment number to check your result.</p>
 
-<c:if test="${notFound}">
-  <p class="notice">No matching result. Check that the enrollment number and name
-     are correct and match our records.</p>
+<c:if test="${invalid}">
+  <p class="notice">That does not look like an enrollment number. Please enter the
+     digits of your enrollment number only.</p>
+</c:if>
+<c:if test="${noRecord}">
+  <p class="notice">No student is on record for that enrollment number. Please
+     check the number and try again.</p>
+</c:if>
+<c:if test="${notDeclared}">
+  <p class="notice">The result has not been declared yet. Please check back after
+     the result is published.</p>
 </c:if>
 
 <c:if test="${not empty ms}">
@@ -58,8 +63,13 @@
       <c:otherwise>
         <c:forEach var="sem" items="${ms.semesters}">
           <h3>Semester <c:out value="${sem.semester}"/>
-            &mdash; SGPA <c:out value="${sem.sgpa}"/>
-            <c:if test="${sem.hasBacklog}"><span class="tag">backlog</span></c:if>
+            <c:choose>
+              <c:when test="${sem.declared}">
+                &mdash; SGPA <c:out value="${sem.sgpa}"/>
+                <c:if test="${sem.hasBacklog}"><span class="tag">backlog</span></c:if>
+              </c:when>
+              <c:otherwise><span class="tag">result awaited</span></c:otherwise>
+            </c:choose>
           </h3>
           <table>
             <thead><tr><th>Paper</th><th>Subject</th><th>Credits</th><th>Internal</th><th>External</th><th>Total</th><th>Grade</th></tr></thead>

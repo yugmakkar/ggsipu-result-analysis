@@ -19,24 +19,24 @@ protections are built in. Each one is checked by the smoke test in
 | Output escaping | All dynamic values (including student names and anything parsed from the PDF) are rendered through JSTL `<c:out>`, which HTML-escapes. | all JSPs |
 | Response headers | `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Content-Security-Policy` (self only), `Referrer-Policy: no-referrer`. | `SecurityHeadersFilter` |
 | Access control | `/admin/*` is behind an auth filter; unauthenticated requests are redirected to login. | `AuthFilter` |
-| Result lookup gate | A public visitor must supply the enrollment number **and** a matching student name. "No such student" and "name does not match" return the identical message, so there is no enumeration oracle. A logged-in admin may look up by enrollment alone. | `ResultServlet` |
+| Result lookup | A public visitor looks up a result by **enrollment number alone** (no name), mirroring how GGSIPU results are themselves public. Until an end-semester result is declared, the page shows "result not declared yet" and no marks. See the trade-off below. | `ResultServlet` |
 | Secrets | `config.properties` (real DB credentials) is gitignored; only `config.example.properties` is committed. | `.gitignore` |
 
 ## Known trade-off: public result lookup
 
-The public result page (`/result`) requires **both** the enrollment number and
-a matching student name before it shows a marksheet (case-insensitive,
-whitespace-normalised full-name match). Because enrollment numbers are
-sequential, requiring the name stops anyone from walking the range and dumping
-every student's marks. "No such student" and "name does not match" return the
-same message, so the page is not an oracle for which enrollment numbers exist.
+The public result page (`/result`) shows a student's marksheet given their
+**enrollment number alone** — no name or other factor is required. This is a
+deliberate product choice: it matches how GGSIPU publishes results publicly, and
+it keeps the student flow as simple as typing one number.
 
-The residual trade-off: someone who already knows a student's enrollment number
-**and** their exact name as recorded can view that student's marks — this mirrors
-how GGSIPU results are themselves public. If stricter privacy is wanted, put
-`/result` behind the same auth filter as `/admin`, or require a second factor
-(e.g. date of birth) before showing a marksheet. Individual marks are the only
-data exposed; admin management stays behind login.
+The trade-off is explicit: because enrollment numbers are sequential, anyone can
+**walk the range** and read every declared student's marks, and the page does
+reveal which enrollment numbers exist (a valid number returns a marksheet or
+"not declared yet", an unknown one returns "no student on record"). Only
+individual marks, SGPA and CGPA are exposed this way; admin management stays
+behind login. If stricter privacy is ever wanted, put `/result` behind an auth
+filter or require a second factor (e.g. date of birth) before showing a
+marksheet — the lookup is the single place to change.
 
 ## Periodic checks
 

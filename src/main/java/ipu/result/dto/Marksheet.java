@@ -30,6 +30,21 @@ public record Marksheet(String enrollmentNo, String name, String collegeCode, St
         public double getSgpa() { return sgpa; }
         public boolean isHasBacklog() { return hasBacklog; }
         public List<MarkRow> getRows() { return rows; }
+
+        /**
+         * True when this semester's end-semester result is "declared" and the page
+         * should show SGPA; false shows "result awaited" instead (and avoids a
+         * misleading "SGPA 0.00"). A row counts as having an end-semester result
+         * when it carries a total, a grade, or an absence.
+         */
+        public boolean isDeclared() {
+            for (MarkRow r : rows) {
+                if (r.absent() || r.total() != null || (r.grade() != null && !r.grade().isBlank())) {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 
     public record MarkRow(String paperId, String paperCode, String subjectName, int credits, Integer internalMax,

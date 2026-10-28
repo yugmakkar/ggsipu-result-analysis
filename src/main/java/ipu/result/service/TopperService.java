@@ -57,6 +57,8 @@ public class TopperService {
     public int collegeCount() { return count("college"); }
     public int courseCount()  { return count("programme"); }
     public int uploadCount()  { return count("result_upload"); }
+    /** Number of per-semester results on record; 0 means nothing has been declared yet. */
+    public int declaredResultCount() { return count("semester_result"); }
 
     private int count(String table) {
         try (Connection c = db.open()) {

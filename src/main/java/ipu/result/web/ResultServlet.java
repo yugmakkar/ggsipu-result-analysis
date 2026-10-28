@@ -9,48 +9,53 @@ import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 
 /**
- * Result lookup. A public visitor must supply BOTH the enrollment number and the
- * student's name — since enrollment numbers are sequential, requiring the name
- * stops anyone from enumerating every student's marks. A logged-in admin may
- * look up by enrollment number alone (used by the dashboard's student links).
+ * Result lookup. A student checks their result with their enrollment number
+ * alone &mdash; no name is required.
  *
- * To avoid an enumeration oracle, "no such student" and "name does not match"
- * return the exact same message.
+ * <p>Three outcomes are distinguished so the student always sees a clear message:
+ * <ul>
+ *   <li><b>declared</b> &mdash; an end-semester result exists, so the full
+ *       marksheet (marks, SGPA, CGPA) is shown;</li>
+ *   <li><b>not declared yet</b> &mdash; the student exists but no end-semester
+ *       result has been published for them (e.g. only internal marks are on
+ *       record, or nothing has been uploaded yet);</li>
+ *   <li><b>no record</b> &mdash; the enrollment number is not in the system.</li>
+ * </ul>
+ * A signed-in admin always sees whatever is on record (including internal-only
+ * marks) so uploads can be verified.
  */
 public class ResultServlet extends BaseServlet {
+
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse res)
             throws ServletException, IOException {
+        boolean isAdmin = isAdmin(req);
+        req.setAttribute("isAdmin", isAdmin);
+
         String enroll = req.getParameter("enroll");
-        String name = req.getParameter("name");
         if (enroll != null && !enroll.isBlank()) {
             enroll = enroll.trim();
             req.setAttribute("query", enroll);
-            req.setAttribute("queryName", name == null ? "" : name.trim());
 
-            Marksheet ms = services().toppers.marksheet(enroll); // PreparedStatement inside
-            if (ms != null && (isAdmin(req) || nameMatches(name, ms.name()))) {
-                req.setAttribute("ms", ms);
+            if (!enroll.matches("\\d{6,20}")) {
+                req.setAttribute("invalid", true);          // not an enrollment number at all
             } else {
-                req.setAttribute("notFound", true);
+                Marksheet ms = services().toppers.marksheet(enroll); // PreparedStatement inside
+                if (ms == null) {
+                    req.setAttribute("noRecord", true);
+                } else if (ms.isInternalOnly() && !isAdmin) {
+                    // Only internal marks on record: the end-semester result is not out yet.
+                    req.setAttribute("notDeclared", true);
+                } else {
+                    req.setAttribute("ms", ms);
+                }
             }
         }
-        req.setAttribute("isAdmin", isAdmin(req));
         view(req, res, "result.jsp");
     }
 
     private static boolean isAdmin(HttpServletRequest req) {
         HttpSession s = req.getSession(false);
         return s != null && s.getAttribute(AuthFilter.SESSION_ADMIN) != null;
-    }
-
-    /** Case-insensitive, whitespace-normalised full-name match. */
-    private static boolean nameMatches(String entered, String stored) {
-        if (entered == null || stored == null) return false;
-        return normalize(entered).equals(normalize(stored)) && !entered.isBlank();
-    }
-
-    private static String normalize(String s) {
-        return s.trim().replaceAll("\\s+", " ").toLowerCase();
     }
 }

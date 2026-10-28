@@ -77,13 +77,14 @@ curl -s -b "$J" -F "csrf=$TOK" -F "pdf=@$PDF;type=application/pdf" "$BASE/admin/
 curl -s "$BASE/result?enroll=%3Cscript%3E" | grep -q "&lt;script&gt;" \
   && ok "output is HTML-escaped" || bad "output is HTML-escaped"
 
-# result lookup requires enrollment AND matching name (anti-enumeration).
-# The bca fixture has AARAV SHARMA = 00199902023.
-curl -s "$BASE/result?enroll=00199902023&name=AARAV%20SHARMA" | grep -qi "internal assessment" \
-  && ok "lookup with correct name shows marksheet" || bad "lookup with correct name shows marksheet"
-curl -s "$BASE/result?enroll=00199902023" | grep -qi "No matching result" \
-  && ! curl -s "$BASE/result?enroll=00199902023" | grep -qi "internal assessment" \
-  && ok "lookup without name is blocked" || bad "lookup without name is blocked"
+# result lookup is by enrollment number alone (no name required). The bca fixture
+# student 00199902023 has only internal-assessment marks, so no end-semester
+# result is declared for them: a public lookup must say so and must NOT leak marks.
+curl -s "$BASE/result?enroll=00199902023" | grep -qi "not been declared" \
+  && ok "internal-only lookup shows result-not-declared" || bad "internal-only lookup shows result-not-declared"
+curl -s "$BASE/result?enroll=00199902023" | grep -qi "internal assessment" \
+  && bad "internal marks must stay hidden from public before declaration" \
+  || ok "internal marks hidden from public before declaration"
 
 # toppers are under development: every type returns the notice and leaks no student data
 for ttype in overall semester subject; do

@@ -33,11 +33,18 @@
 <section class="panel">
   <h2>Check a result</h2>
   <form method="get" action="${pageContext.request.contextPath}/result" class="row">
-    <input type="text" name="enroll" placeholder="Enrollment number" required>
-    <input type="text" name="name" placeholder="Student name" required>
+    <input type="text" name="enroll" placeholder="Enrollment number" inputmode="numeric" required>
     <button type="submit">Search</button>
   </form>
-  <p class="muted">Enter your enrollment number and your name exactly as on record.</p>
+  <c:choose>
+    <c:when test="${resultsDeclared}">
+      <p class="muted">Enter your enrollment number to check your result.</p>
+    </c:when>
+    <c:otherwise>
+      <p class="muted">No result has been declared yet. Results appear here once the
+         admin uploads the result PDF.</p>
+    </c:otherwise>
+  </c:choose>
 </section>
 
 <section class="panel">

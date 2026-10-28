@@ -16,6 +16,7 @@ public class HomeServlet extends BaseServlet {
         req.setAttribute("courses", t.courseCount());
         req.setAttribute("students", t.studentCount());
         req.setAttribute("uploads", t.uploadCount());
+        req.setAttribute("resultsDeclared", t.declaredResultCount() > 0);
         req.setAttribute("toppersEnabled", services().config.toppersEnabled());
         view(req, res, "home.jsp");
     }

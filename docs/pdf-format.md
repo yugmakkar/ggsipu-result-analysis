@@ -1,14 +1,17 @@
 # Result PDF formats
 
-The app recognises two PDF layouts. The format is detected automatically on
+The app recognises three PDF layouts. The format is detected automatically on
 upload (from the text PDFBox extracts) and routed to the matching parser.
 
-1. **GGSIPU Internal Assessment sheet** (`InternalAssessmentExtractor`) — the
-   real university format, used for the **Semester-1** showcase. This is what an
-   admin uploads today. See *Internal Assessment format* below.
-2. **End-semester grammar** (`ResultExtractor`) — a synthetic pipe-delimited
-   grammar used by the dormant Semester-2 results/SGPA/topper path. See
-   *End-semester grammar* below.
+1. **GGSIPU Internal Assessment sheet** (`InternalAssessmentExtractor`, marker
+   `Internal Assessment for Examination`) — the real mid-semester internal-marks
+   format. See *Internal Assessment format* below.
+2. **GGSIPU Result Tabulation Sheet** (`GazetteResultExtractor`, marker
+   `RESULT TABULATION SHEET`) — the real end-semester result gazette the
+   university publishes once a result is declared. This is what an admin uploads
+   to declare results. See *Result Tabulation Sheet* below.
+3. **Pipe-delimited grammar** (`ResultExtractor`) — a synthetic fallback grammar
+   kept for fixtures and tests. See *Pipe-delimited grammar* below.
 
 ---
 
@@ -58,7 +61,69 @@ and tests — no real student data is ever committed.
 
 ---
 
-## End-semester grammar
+## Result Tabulation Sheet
+
+This is the **real end-semester gazette**. One PDF holds **one programme and one
+semester**, with a *Scheme of Examinations* table at the top and then a result
+block per institution. `GazetteResultExtractor` (marker `RESULT TABULATION SHEET`)
+parses it.
+
+(All values below are synthetic / placeholders — no real student data.)
+
+### The scheme table
+
+```
+ (SCHEME OF EXAMINATIONS)
+Scheme of Programme Code: 999   Programme Name: DEMO PROGRAMME   SchemeID: ...   Sem./Year: 01 SEMESTER
+S.No. Paper ID Code Subject Credit Type Exam Mode Kind Minor Major Max. Marks Pass Marks
+01 999101 DMO-101 DEMO THEORY ONE  4 THEORY UES COMPULSORY MANDATORY  25  75  100  40
+04 999171 DMO-171 DEMO PROFICIENCY  1 PRACTICAL NUES COMPULSORY MANDATORY --  100  100  40
+```
+
+Per row: the 6-digit **Paper ID**, the human **Code**, the **Subject** name, the
+**Credit** (first bare integer after the name), and the last four numeric columns
+`Minor Major Max Pass`. `Minor` is the internal maximum (`--` means the paper has
+no internal component). A semester may have **more than one** scheme table (many
+electives); they are merged by paper id.
+
+### A student
+
+PDFBox with `setSortByPosition(true)` flattens each student's single visual row
+into three text lines:
+
+```
+00199999924 999101(4) 999103(4) 999161(2) 999171(1)  11
+AARAV DEMO
+SID: 000000000001  20  53  22  60  35  50 -  84
+SchemeID: ...
+ 1 73(A) 82(A+) 85(A+) 84(A+)
+```
+
+- **Anchor line** — the 11-digit **enrollment number**, then one
+  `paperid(credits)` token per paper, then the credits secured (CS). Credits are
+  read here, so electives (classmates sitting different papers) need no special
+  handling. As in the internal format, the enrollment number encodes the college
+  code at positions 4–6 and the programme code at positions 7–9.
+- **SID line** — `internal external` marks **interleaved**, two tokens per paper.
+  A `-`, `--` or `A` means that component is blank/absent (e.g. a NUES paper has
+  no internal: `- 84`).
+- **Totals line** — a leading serial, then one `total(grade)` token per paper, or
+  a bare `A` for an absent paper. Parentheses tell the grade letter `A` (as in
+  `73(A)`) apart from the absent marker `A`. A trailing `*` (e.g. `40(P)*`) marks
+  grace marks; the printed total is kept as-is.
+
+A printed grade is trusted (it already reflects grace marks); it is only derived
+from the total when absent. Re-importing a **revised** gazette (which re-states
+only a paper or two per student) upserts those papers and recomputes the
+semester's SGPA from *all* of that semester's declared marks — it does **not**
+wipe the student's other papers.
+
+`GazetteResultExtractorTest` exercises this layout (normal, absent and grace-marks
+students) entirely on synthetic data.
+
+---
+
+## Pipe-delimited grammar
 
 The parser (`ResultExtractor`) reads the text that PDFBox extracts from a result
 PDF **line by line**, keeping track of the current college, programme, semester
@@ -106,18 +171,17 @@ MARK|99101|10|20|30|
 MARK|99102|25|30|55|
 ```
 
-## Adapting to a real GGSIPU gazette
-
-A real gazette is laid out as multi-column tables, not this clean grammar.
-When you have a real result PDF:
-
-1. Run `java -jar result-analysis.jar` with a small throwaway call, or inspect
-   the output of `PdfReader.readText(file)`, to see exactly what text PDFBox
-   produces for your PDF.
-2. Rewrite **only** `ResultExtractor.extract(...)` to recognise that layout
-   (regular expressions over the extracted lines). Everything downstream — the
-   grading, SGPA/CGPA, DAOs, toppers, web UI — stays the same, because the
-   extractor is the single translation point into `ParsedResult`.
-
 `FixturePdfGenerator` produces a sample PDF in the grammar above so the whole
-pipeline can be run and tested before a real PDF is available.
+pipeline can be run and tested without a real PDF.
+
+## Re-tuning if the gazette layout changes
+
+Every parser is a single translation point into `ParsedResult`; everything
+downstream — grading, SGPA/CGPA, DAOs, toppers, web UI — is unaffected. If the
+university changes a layout:
+
+1. Inspect `PdfReader.readText(file)` output to see exactly what text PDFBox
+   produces for the new PDF.
+2. Adjust **only** the matching extractor's regexes:
+   `GazetteResultExtractor` for the end-semester gazette,
+   `InternalAssessmentExtractor` for internal sheets.
