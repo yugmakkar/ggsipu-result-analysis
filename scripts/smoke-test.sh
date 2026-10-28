@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # End-to-end + security smoke test against a running server.
 # Prereqs:
-#   - server running (java -jar target/result-analysis.jar web)
-#   - an admin account created (java -jar target/result-analysis.jar create-admin admin)
+#   - server running (java -jar target/result-analysis.jar web) — this also seeds
+#     the demo admin (admin / admin12345), which ADMIN_USER/ADMIN_PASS default to
 #   - a sample PDF (java -jar target/result-analysis.jar gen-fixture sample-bca.pdf bca)
 #
 # Usage:  BASE=http://localhost:8080 ADMIN_USER=admin ADMIN_PASS=... PDF=sample-bca.pdf scripts/smoke-test.sh
@@ -10,7 +10,7 @@ set -uo pipefail
 
 BASE="${BASE:-http://localhost:8080}"
 ADMIN_USER="${ADMIN_USER:-admin}"
-ADMIN_PASS="${ADMIN_PASS:-}"
+ADMIN_PASS="${ADMIN_PASS:-admin12345}"   # the seeded demo admin (see docs/SECURITY.md)
 PDF="${PDF:-sample-bca.pdf}"
 J="$(mktemp)"
 pass=0; fail=0

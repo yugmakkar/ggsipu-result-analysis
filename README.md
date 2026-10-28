@@ -75,15 +75,28 @@ All commands go through the one jar:
 java -jar target/result-analysis.jar gen-fixture sample-bca.pdf bca
 java -jar target/result-analysis.jar gen-fixture sample-mca.pdf mca
 
-# 2. create an admin for the web UI (password is prompted, or via ADMIN_PASSWORD)
-java -jar target/result-analysis.jar create-admin admin
-
-# 3. start the web app  ->  http://localhost:8080
+# 2. start the web app  ->  http://localhost:8080
 java -jar target/result-analysis.jar web
-#    then log in at /admin and upload the PDF(s).
+#    then log in at /login and upload the PDF(s).
 
 # (optional) import a PDF straight from the command line instead
 java -jar target/result-analysis.jar import sample-bca.pdf
+```
+
+**Demo admin login:** on the first `web` start a demo admin is seeded so you can
+try the upload flow straight away:
+
+| Username | Password |
+|----------|----------|
+| `admin`  | `admin12345` |
+
+Log in at `/login`, then upload a result PDF from the dashboard. These
+credentials are **public and for evaluation only** — on a real deployment start
+with `DEMO_ADMIN=false` and create a private admin instead:
+
+```bash
+DEMO_ADMIN=false java -jar target/result-analysis.jar web      # don't seed the demo admin
+java -jar target/result-analysis.jar create-admin <username>   # your own admin (password prompted, or via ADMIN_PASSWORD)
 ```
 
 > If you pulled an update that changed the database schema, delete the local

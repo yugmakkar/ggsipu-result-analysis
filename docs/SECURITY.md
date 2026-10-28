@@ -10,7 +10,7 @@ protections are built in. Each one is checked by the smoke test in
 |------|---------|-------|
 | SQL injection | Every query uses `PreparedStatement` with bound parameters. No SQL is built by string concatenation from user input. | all DAOs |
 | Admin passwords | Stored as PBKDF2-HMAC-SHA256 (120k iterations, per-user salt). Never stored or logged in plaintext. Verified in constant time. | `PasswordHasher` |
-| No default admin | The first admin is created explicitly (`create-admin`), with the password read from a prompt or `ADMIN_PASSWORD`. There is no built-in account. | `Main`, `AdminDAO` |
+| Demo admin | For evaluation, the `web` command seeds a **public** demo admin (`admin` / `admin12345`) when that username is absent. It never overwrites an existing `admin`, and `DEMO_ADMIN=false` turns it off so a real deployment uses a private `create-admin` account instead. See the trade-off below. | `Main`, `AppConfig` |
 | Session fixation | `request.changeSessionId()` is called on successful login. | `LoginServlet` |
 | Session cookies | `HttpOnly` (Tomcat default), 30-minute idle timeout. | `WebServer` |
 | Brute force | Admin accounts lock for 15 minutes after 5 failed logins. | `AdminDAO` |
@@ -21,6 +21,23 @@ protections are built in. Each one is checked by the smoke test in
 | Access control | `/admin/*` is behind an auth filter; unauthenticated requests are redirected to login. | `AuthFilter` |
 | Result lookup | A public visitor looks up a result by **enrollment number alone** (no name), mirroring how GGSIPU results are themselves public. Until an end-semester result is declared, the page shows "result not declared yet" and no marks. See the trade-off below. | `ResultServlet` |
 | Secrets | `config.properties` (real DB credentials) is gitignored; only `config.example.properties` is committed. | `.gitignore` |
+
+## Known trade-off: public demo admin
+
+The `web` command seeds a documented admin (`admin` / `admin12345`) on first
+start so anyone cloning the project can log in and try the upload flow without
+setup. This is a deliberate choice for an evaluation project, and it has real
+consequences on any publicly reachable instance:
+
+- Anyone with the (public) credentials can log in and **upload or overwrite
+  results**.
+- Because the account is shared, anyone can trip the 5-failed-login lockout and
+  **lock that account for 15 minutes** for everyone.
+
+The mitigation is to **not** run the demo admin in production: start with
+`DEMO_ADMIN=false` and create a private account with `create-admin`. The seeding
+only ever *adds* the `admin` row when it is missing — it never changes an
+existing one — so a private admin you create is safe from it.
 
 ## Known trade-off: public result lookup
 

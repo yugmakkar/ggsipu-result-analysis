@@ -14,6 +14,16 @@ import java.util.Properties;
  */
 public class AppConfig {
 
+    /**
+     * A documented demo admin, seeded on {@code web} startup so anyone can clone
+     * the project and log in to try the upload flow without first running
+     * {@code create-admin}. These credentials are public on purpose; turn the
+     * seeding off on any real deployment with {@code DEMO_ADMIN=false} (see
+     * {@link #demoAdmin()}) and create a private admin instead.
+     */
+    public static final String DEMO_ADMIN_USER = "admin";
+    public static final String DEMO_ADMIN_PASSWORD = "admin12345";
+
     private final Properties props = new Properties();
 
     public AppConfig() {
@@ -55,6 +65,15 @@ public class AppConfig {
      */
     public boolean toppersEnabled() {
         return Boolean.parseBoolean(pick("FEATURES_TOPPERS", "features.toppers", "false"));
+    }
+
+    /**
+     * Whether to seed the public {@link #DEMO_ADMIN_USER} account on web startup.
+     * On by default for easy evaluation; set {@code DEMO_ADMIN=false} (or
+     * {@code demo.admin=false}) on a real deployment.
+     */
+    public boolean demoAdmin() {
+        return Boolean.parseBoolean(pick("DEMO_ADMIN", "demo.admin", "true"));
     }
 
     private String pick(String env, String key, String dflt) {

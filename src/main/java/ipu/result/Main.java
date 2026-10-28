@@ -56,10 +56,7 @@ public class Main {
         Db db = new Db(cfg.dbUrl(), cfg.dbUser(), cfg.dbPassword());
         db.initSchema();
         Services services = new Services(cfg, db);
-        if (services.adminDAO.find("admin").isEmpty() && !hasAnyAdmin(db)) {
-            System.out.println("NOTE: no admin account exists yet. Create one with:");
-            System.out.println("      java -jar result-analysis.jar create-admin <username>");
-        }
+        seedDemoAdmin(cfg, services.adminDAO);
         WebServer server = new WebServer(services, cfg.webPort());
         server.start();
         server.await();
@@ -106,11 +103,20 @@ public class Main {
         return console.readPassword("New admin password: ");
     }
 
-    private static boolean hasAnyAdmin(Db db) {
-        try (var c = db.open(); var st = c.createStatement();
-             var rs = st.executeQuery("SELECT COUNT(*) FROM admin")) {
-            return rs.next() && rs.getInt(1) > 0;
-        } catch (Exception e) { return false; }
+    /**
+     * Seeds the public demo admin (username {@code admin}) so a fresh clone can
+     * be logged into without running {@code create-admin} first. Only creates it
+     * when that username is absent, so an existing {@code admin} — perhaps with a
+     * changed password — is never overwritten, and a restart does not hit a
+     * unique-key violation. Switched off with {@code DEMO_ADMIN=false}.
+     */
+    private static void seedDemoAdmin(AppConfig cfg, AdminDAO dao) {
+        if (!cfg.demoAdmin() || dao.exists(AppConfig.DEMO_ADMIN_USER)) return;
+        dao.create(AppConfig.DEMO_ADMIN_USER,
+                PasswordHasher.hash(AppConfig.DEMO_ADMIN_PASSWORD.toCharArray()));
+        System.out.printf("NOTE: seeded demo admin '%s' / '%s' (public credentials). "
+                + "Disable with DEMO_ADMIN=false on a real deployment.%n",
+                AppConfig.DEMO_ADMIN_USER, AppConfig.DEMO_ADMIN_PASSWORD);
     }
 
     private static void usage() {
