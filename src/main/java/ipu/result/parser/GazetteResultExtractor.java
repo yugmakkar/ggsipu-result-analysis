@@ -179,11 +179,33 @@ public class GazetteResultExtractor {
         }
     }
 
-    /** Emits a finished student's students/marks rows, or does nothing if the block is incomplete. */
+    /**
+     * Emits a finished student's students/marks rows.
+     *
+     * <p>Once an anchor has been recognised, accepting a partial block would
+     * shift a student's papers or make an upload look successful while silently
+     * dropping data. Reject it instead; the caller then performs no database
+     * work because parsing completes before persistence begins.</p>
+     */
     private Pending flush(ParsedResult out, Pending cur) {
-        if (cur == null || cur.paperIds.isEmpty() || cur.totalTokens == null) return null;
+        if (cur == null) return null;
+        if (cur.paperIds.isEmpty() || cur.ieTokens == null || cur.totalTokens == null) {
+            throw malformed(cur, "missing SID or totals line");
+        }
 
         int n = cur.paperIds.size();
+        if (cur.ieTokens.length != 2 * n) {
+            throw malformed(cur, "expected " + (2 * n) + " SID tokens but found " + cur.ieTokens.length);
+        }
+        if (cur.totalTokens.length != n) {
+            throw malformed(cur, "expected " + n + " totals tokens but found " + cur.totalTokens.length);
+        }
+        for (String token : cur.totalTokens) {
+            if (!TOTAL_TOKEN.matcher(token).matches() && !isAbsent(token)) {
+                throw malformed(cur, "unrecognised totals token '" + token + "'");
+            }
+        }
+
         String collegeCode = cur.enroll.substring(3, 6);
         String programmeCode = cur.enroll.length() >= 9 ? cur.enroll.substring(6, 9) : cur.programme;
         out.colleges.putIfAbsent(collegeCode, new College(collegeCode, collegeCode));
@@ -195,11 +217,8 @@ public class GazetteResultExtractor {
 
         stats.students++;
         stats.papers += n;
-        if (cur.totalTokens.length != n) stats.tokenMismatches++;
-        boolean ieUsable = cur.ieTokens != null && cur.ieTokens.length == 2 * n;
-        if (!ieUsable && cur.ieTokens != null) stats.tokenMismatches++;
 
-        for (int i = 0; i < n && i < cur.totalTokens.length; i++) {
+        for (int i = 0; i < n; i++) {
             String paperId = cur.paperIds.get(i);
             // Guarantee the subject exists even if it was missing from the scheme table.
             out.subjects.putIfAbsent(paperId, new Subject(
@@ -217,23 +236,24 @@ public class GazetteResultExtractor {
                 grace = !mt.group(3).isEmpty();
             } else if (isAbsent(cur.totalTokens[i])) {
                 absent = true;              // graded F downstream
-            } else {
-                continue;                   // unknown status (AP/RL/D/C): write nothing for this paper
             }
 
-            if (ieUsable) {
-                internal = number(cur.ieTokens[2 * i]);
-                external = number(cur.ieTokens[2 * i + 1]);
-                // Grace marks are added to the total but not to the components, so
-                // only cross-check the sum on non-grace papers.
-                if (!grace && internal != null && external != null && total != null
-                        && internal + external != total) {
-                    stats.sumMismatches++;
-                }
+            internal = number(cur.ieTokens[2 * i]);
+            external = number(cur.ieTokens[2 * i + 1]);
+            // Grace marks are added to the total but not to the components, so
+            // only cross-check the sum on non-grace papers.
+            if (!grace && internal != null && external != null && total != null
+                    && internal + external != total) {
+                stats.sumMismatches++;
             }
             out.marks.add(new Mark(cur.enroll, paperId, internal, external, total, grade, absent));
         }
         return null;
+    }
+
+    private static ResultExtractor.ParseException malformed(Pending cur, String reason) {
+        return new ResultExtractor.ParseException(
+                "Malformed Gazette block for enrollment " + cur.enroll + ": " + reason);
     }
 
     private void addSubject(ParsedResult out, Matcher mRow, int semester, String programme) {

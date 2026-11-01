@@ -122,6 +122,42 @@ class GazetteResultExtractorTest {
         assertEquals(0, ex.stats().sumMismatches);
     }
 
+    @Test
+    void rejectsIncompleteStudentBlockInsteadOfReturningPartialResults() {
+        String incomplete = GAZETTE.replace(
+                " 3 40(P)* 82(A+) 85(A+) 84(A+)",
+                "");
+
+        ResultExtractor.ParseException ex = assertThrows(ResultExtractor.ParseException.class,
+                () -> new GazetteResultExtractor().extract(incomplete));
+        assertTrue(ex.getMessage().contains("00399999924"));
+        assertTrue(ex.getMessage().contains("missing SID or totals line"));
+    }
+
+    @Test
+    void rejectsMismatchedTotalsInsteadOfDroppingAPaper() {
+        String mismatched = GAZETTE.replace(
+                " 1 73(A) 82(A+) 85(A+) 84(A+)",
+                " 1 73(A) 82(A+) 85(A+)");
+
+        ResultExtractor.ParseException ex = assertThrows(ResultExtractor.ParseException.class,
+                () -> new GazetteResultExtractor().extract(mismatched));
+        assertTrue(ex.getMessage().contains("00199999924"));
+        assertTrue(ex.getMessage().contains("expected 4 totals tokens but found 3"));
+    }
+
+    @Test
+    void rejectsUnknownTotalsTokenInsteadOfSilentlyOmittingAMark() {
+        String unknown = GAZETTE.replace(
+                " 1 73(A) 82(A+) 85(A+) 84(A+)",
+                " 1 73(A) RL 85(A+) 84(A+)");
+
+        ResultExtractor.ParseException ex = assertThrows(ResultExtractor.ParseException.class,
+                () -> new GazetteResultExtractor().extract(unknown));
+        assertTrue(ex.getMessage().contains("00199999924"));
+        assertTrue(ex.getMessage().contains("unrecognised totals token 'RL'"));
+    }
+
     private static Mark mark(ParsedResult r, String enroll, String paperId) {
         return r.marks.stream()
                 .filter(m -> m.enrollmentNo().equals(enroll) && m.paperId().equals(paperId))
