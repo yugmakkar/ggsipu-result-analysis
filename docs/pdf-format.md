@@ -103,7 +103,9 @@ SchemeID: ...
   `paperid(credits)` token per paper, then the credits secured (CS). Credits are
   read here, so electives (classmates sitting different papers) need no special
   handling. As in the internal format, the enrollment number encodes the college
-  code at positions 4–6 and the programme code at positions 7–9.
+  code at positions 4–6 and the programme code at positions 7–9. The student's
+  `batch_year` comes from the result header's `Batch:` field — **not** from the
+  examination session, whose year is the exam year, not the admission batch.
 - **SID line** — `internal external` marks **interleaved**, two tokens per paper.
   A `-`, `--` or `A` means that component is blank/absent (e.g. a NUES paper has
   no internal: `- 84`).
@@ -113,7 +115,9 @@ SchemeID: ...
   grace marks; the printed total is kept as-is.
 
 A printed grade is trusted (it already reflects grace marks); it is only derived
-from the total when absent. Re-importing a **revised** gazette (which re-states
+from the total when absent. A paper that appears in a student's row but not in
+the scheme table is still imported, using its anchor credits and the result
+block's semester. Re-importing a **revised** gazette (which re-states
 only a paper or two per student) upserts those papers and recomputes the
 semester's SGPA from *all* of that semester's declared marks — it does **not**
 wipe the student's other papers.

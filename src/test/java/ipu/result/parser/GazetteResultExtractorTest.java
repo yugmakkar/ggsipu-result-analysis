@@ -81,6 +81,8 @@ class GazetteResultExtractorTest {
         assertEquals("999", aarav.collegeCode());
         assertEquals("999", aarav.programmeCode());
         assertTrue(r.students.stream().anyMatch(s -> s.name().equals("BHAVYA DEMO NAME")));
+        // Batch comes from "Batch: 2024", not from the March 2025 exam session.
+        assertTrue(r.students.stream().allMatch(s -> s.batchYear() == 2024));
     }
 
     @Test
@@ -120,6 +122,20 @@ class GazetteResultExtractorTest {
         assertEquals(10, p1.internal());
         assertEquals(28, p1.external());         // 10+28 = 38, below 40: grace, not a parse error
         assertEquals(0, ex.stats().sumMismatches);
+    }
+
+    @Test
+    void fallsBackToTheResultBlockSemesterWhenAPaperIsMissingFromTheScheme() {
+        String noSchemeRow = GAZETTE.replace(
+                "01 999101 DMO-101 DEMO THEORY ONE  4 THEORY UES COMPULSORY MANDATORY  25  75  100  40 \n",
+                "");
+
+        ParsedResult r = new GazetteResultExtractor().extract(noSchemeRow);
+        Subject fallback = r.subjects.get("999101");
+        assertNotNull(fallback);
+        assertEquals(4, fallback.credits());          // credits still come from the anchor
+        assertEquals(1, fallback.semester());        // the result block's semester, not 0
+        assertEquals(3, r.students.size());          // the marks are still imported
     }
 
     @Test

@@ -93,6 +93,8 @@ public class GazetteResultExtractor {
         int schemeSemester = 0;           // semester of the scheme table currently being read
         boolean inScheme = false;
         String currentProgramme = null;
+        Integer currentBatch = null;      // admission batch from the result header ("Batch: 2023")
+        Integer currentSemester = null;   // semester of the result block being read
 
         Pending cur = null;               // the student whose lines we are still collecting
 
@@ -104,6 +106,8 @@ public class GazetteResultExtractor {
             if (mResHdr.find()) {
                 cur = flush(out, cur);
                 currentProgramme = mResHdr.group(1);
+                currentSemester = Integer.valueOf(mResHdr.group(3));
+                currentBatch = Integer.valueOf(mResHdr.group(4));
                 out.examSession = sessionFrom(line);
                 out.programmes.putIfAbsent(currentProgramme,
                         new Programme(currentProgramme, mResHdr.group(2).trim(), 0));
@@ -129,7 +133,8 @@ public class GazetteResultExtractor {
             if (mAnchor.matches()) {
                 cur = flush(out, cur);
                 inScheme = false;
-                cur = new Pending(mAnchor.group(1), currentProgramme, out.examSession);
+                cur = new Pending(mAnchor.group(1), currentProgramme,
+                        currentSemester, currentBatch);
                 for (Matcher pm = PAPER_CREDIT.matcher(mAnchor.group(2)); pm.find(); ) {
                     cur.paperIds.add(pm.group(1));
                     cur.credits.add(Integer.parseInt(pm.group(2)));
@@ -163,15 +168,17 @@ public class GazetteResultExtractor {
 
     /** The lines of one student, gathered until the totals line completes the block. */
     private static final class Pending {
-        final String enroll, programme, session;
+        final String enroll, programme;
+        final Integer semester, batch;
         final List<String> paperIds = new ArrayList<>();
         final List<Integer> credits = new ArrayList<>();
         final StringBuilder name = new StringBuilder();
         String[] ieTokens;      // interleaved internal/external, 2 per paper
         String[] totalTokens;   // total(grade) or bare status, 1 per paper
 
-        Pending(String enroll, String programme, String session) {
-            this.enroll = enroll; this.programme = programme; this.session = session;
+        Pending(String enroll, String programme, Integer semester, Integer batch) {
+            this.enroll = enroll; this.programme = programme;
+            this.semester = semester; this.batch = batch;
         }
         void appendName(String s) {
             if (name.length() > 0) name.append(' ');
@@ -213,7 +220,9 @@ public class GazetteResultExtractor {
             out.programmes.putIfAbsent(programmeCode, new Programme(programmeCode, programmeCode, 0));
         }
         String name = cur.name.length() == 0 ? cur.enroll : cur.name.toString().trim();
-        out.students.add(new Student(cur.enroll, name, collegeCode, programmeCode, batchYear(cur.session)));
+        // The gazette states the admission batch explicitly; the exam session's
+        // year is a different thing (e.g. Batch 2023, March 2025 examination).
+        out.students.add(new Student(cur.enroll, name, collegeCode, programmeCode, cur.batch));
 
         stats.students++;
         stats.papers += n;
@@ -221,8 +230,11 @@ public class GazetteResultExtractor {
         for (int i = 0; i < n; i++) {
             String paperId = cur.paperIds.get(i);
             // Guarantee the subject exists even if it was missing from the scheme table.
+            // A paper absent from the scheme still belongs to this result block's
+            // semester, never semester 0.
             out.subjects.putIfAbsent(paperId, new Subject(
-                    paperId, paperId, paperId, cur.credits.get(i), 0, programmeCode, null));
+                    paperId, paperId, paperId, cur.credits.get(i),
+                    cur.semester == null ? 0 : cur.semester, programmeCode, null));
 
             Integer internal = null, external = null, total = null;
             String grade = null;
@@ -294,12 +306,6 @@ public class GazetteResultExtractor {
     private static String sessionFrom(String resultHeaderLine) {
         int i = resultHeaderLine.indexOf("Examination:");
         return i < 0 ? null : resultHeaderLine.substring(i + "Examination:".length()).trim();
-    }
-
-    private static Integer batchYear(String session) {
-        if (session == null) return null;
-        Matcher m = Pattern.compile("(20\\d{2})").matcher(session);
-        return m.find() ? Integer.valueOf(m.group(1)) : null;
     }
 
     private static boolean isAbsent(String s) {
